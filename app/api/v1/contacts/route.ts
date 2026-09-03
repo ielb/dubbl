@@ -11,6 +11,7 @@ import { checkResourceLimit, checkMultiCurrency } from "@/lib/api/check-limit";
 import { logAudit } from "@/lib/api/audit";
 import { z } from "zod";
 import { currencyCodeSchema } from "@/lib/currency/zod";
+import { resolveDocumentCurrency } from "@/lib/currency/resolve-currency";
 
 const createSchema = z.object({
   name: z.string().min(1),
@@ -21,7 +22,11 @@ const createSchema = z.object({
   paymentTermsDays: z.number().int().min(0).default(30),
   addresses: z.any().optional(),
   notes: z.string().nullable().optional(),
-  currencyCode: currencyCodeSchema.default("USD"),
+  // No hardcoded default: an unset currency should fall back to the org's own
+  // default currency (resolveDocumentCurrency below), not always "USD" — a
+  // contact created for a non-USD org must not silently force every invoice
+  // and bill raised against it into the wrong currency.
+  currencyCode: currencyCodeSchema.optional(),
 });
 
 export async function GET(request: Request) {
@@ -155,15 +160,20 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const parsed = createSchema.parse(body);
+    const currencyCode = await resolveDocumentCurrency(
+      ctx.organizationId,
+      parsed.currencyCode
+    );
 
     await checkResourceLimit(ctx.organizationId, contact, contact.organizationId, "contacts", contact.deletedAt);
-    await checkMultiCurrency(ctx.organizationId, parsed.currencyCode);
+    await checkMultiCurrency(ctx.organizationId, currencyCode);
 
     const [created] = await db
       .insert(contact)
       .values({
         organizationId: ctx.organizationId,
         ...parsed,
+        currencyCode,
       })
       .returning();
 
