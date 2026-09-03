@@ -15,6 +15,7 @@ import {
   type SettlementLeg,
 } from "@/lib/currency/convert-entry";
 import { assertNotLocked, PeriodLockedError } from "@/lib/api/period-lock";
+import { getControlCodesForOrg } from "@/lib/api/control-account-codes";
 
 /** Either the pool or an open transaction. */
 type Exec = typeof db | Parameters<Parameters<(typeof db)["transaction"]>[0]>[0];
@@ -162,9 +163,10 @@ export async function processFxRevaluationForOrg(
     throw err;
   }
 
+  const codes = await getControlCodesForOrg(orgId);
   const [arAccount, apAccount, gainAccount, lossAccount] = await Promise.all([
-    findAccount(orgId, "1200"),
-    findAccount(orgId, "2100"),
+    findAccount(orgId, codes.ar),
+    findAccount(orgId, codes.ap),
     ensureAccount(orgId, UNREALISED_GAIN, base),
     ensureAccount(orgId, UNREALISED_LOSS, base),
   ]);

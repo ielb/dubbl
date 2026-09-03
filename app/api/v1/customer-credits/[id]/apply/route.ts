@@ -24,6 +24,7 @@ import {
   findAccountByCode,
   ensureControlAccount,
 } from "@/lib/api/journal-automation";
+import { getControlCodesForOrg } from "@/lib/api/control-account-codes";
 import { z } from "zod";
 
 const applySchema = z.object({
@@ -124,11 +125,12 @@ export async function POST(
       "PAY"
     );
 
+    const codes = await getControlCodesForOrg(ctx.organizationId);
     const result = await db.transaction(async (tx) => {
-      // Resolve AR (1200) and Customer Deposits (2410).
-      const arAccount = await findAccountByCode(ctx.organizationId, "1200", tx);
+      // Resolve AR (country-resolved code) and Customer Deposits (2410).
+      const arAccount = await findAccountByCode(ctx.organizationId, codes.ar, tx);
       if (!arAccount) {
-        throw new Error("Accounts Receivable account (1200) not found");
+        throw new Error(`Accounts Receivable account (${codes.ar}) not found`);
       }
       const deposits = await ensureControlAccount(
         ctx.organizationId,

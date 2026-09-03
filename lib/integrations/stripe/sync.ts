@@ -19,6 +19,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { notDeleted } from "@/lib/db/soft-delete";
 import { stripe as _stripeClient } from "@/lib/stripe";
 import { getNextNumber } from "@/lib/api/numbering";
+import { getControlCodesForOrg } from "@/lib/api/control-account-codes";
 
 // Non-null wrapper - callers (webhook handlers) already guard for null stripe
 const stripe = _stripeClient!;
@@ -1201,12 +1202,13 @@ export async function handleInvoicePaid(
 
   if (taxTotal > 0) {
     // 3-line entry: DR Clearing, CR Revenue (subtotal), CR Tax Liability (tax)
+    const codes = await getControlCodesForOrg(integration.organizationId);
     const taxAccountId = await resolveOrCreateAccount(
       integration.organizationId,
       "Tax Liability",
       "liability",
       "current_liability",
-      "2200"
+      codes.outputVat ?? "2200"
     );
 
     await db.insert(journalLine).values([
@@ -2006,13 +2008,14 @@ export async function handleStripeCreditNoteCreated(
 
   // DR Tax Liability if tax > 0
   const taxAmount = (stripeCN.total - stripeCN.subtotal);
+  const codes = await getControlCodesForOrg(integration.organizationId);
   if (taxAmount > 0) {
     const taxAccountId = await resolveOrCreateAccount(
       integration.organizationId,
       "Tax Liability",
       "liability",
       "current_liability",
-      "2200"
+      codes.outputVat ?? "2200"
     );
     journalLines.push({
       journalEntryId: cnEntry.id,
@@ -2030,7 +2033,7 @@ export async function handleStripeCreditNoteCreated(
     "Accounts Receivable",
     "asset",
     "current_asset",
-    "1200"
+    codes.ar
   );
   journalLines.push({
     journalEntryId: cnEntry.id,
@@ -2145,13 +2148,14 @@ export async function handleStripeCreditNoteUpdated(
 
     // DR Tax Liability if tax > 0
     const taxAmount = stripeCN.total - stripeCN.subtotal;
+    const codes = await getControlCodesForOrg(integration.organizationId);
     if (taxAmount > 0) {
       const taxAccountId = await resolveOrCreateAccount(
         integration.organizationId,
         "Tax Liability",
         "liability",
         "current_liability",
-        "2200"
+        codes.outputVat ?? "2200"
       );
       newJournalLines.push({
         journalEntryId: newEntry.id,
@@ -2169,7 +2173,7 @@ export async function handleStripeCreditNoteUpdated(
       "Accounts Receivable",
       "asset",
       "current_asset",
-      "1200"
+      codes.ar
     );
     newJournalLines.push({
       journalEntryId: newEntry.id,

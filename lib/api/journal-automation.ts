@@ -5,6 +5,7 @@ import { recordInventoryReceipt, recordInventoryIssue, type ValuedItem } from ".
 import { getExchangeRate, convertAmount, MissingExchangeRateError } from "@/lib/currency/converter";
 import { convertLinesToBase, realizedSettlementLegs } from "@/lib/currency/convert-entry";
 import type { SettlementRole } from "@/lib/currency/convert-entry";
+import { getControlCodesForOrg } from "./control-account-codes";
 
 interface JournalAutomationContext {
   organizationId: string;
@@ -203,20 +204,28 @@ export async function ensureControlAccount(
   exec: DbOrTx = db
 ) {
   const def = CONTROL_ACCOUNTS[key];
-  const existing = await findAccountByCode(organizationId, def.code, exec);
+  // outputVat/inputVat only match GENERIC_ACCOUNTS' codes (2200/1500) — for an
+  // org on a localized chart template (FR/ES/MA/etc.), resolve its real VAT
+  // control-account code instead of manufacturing a generic one.
+  let code = def.code;
+  if (key === "outputVat" || key === "inputVat") {
+    const codes = await getControlCodesForOrg(organizationId);
+    code = (key === "outputVat" ? codes.outputVat : codes.inputVat) ?? def.code;
+  }
+  const existing = await findAccountByCode(organizationId, code, exec);
   if (existing) return existing;
   await exec
     .insert(chartAccount)
     .values({
       organizationId,
-      code: def.code,
+      code,
       name: def.name,
       type: def.type,
       subType: def.subType,
       currencyCode: baseCurrency,
     })
     .onConflictDoNothing({ target: [chartAccount.organizationId, chartAccount.code] });
-  return findAccountByCode(organizationId, def.code, exec);
+  return findAccountByCode(organizationId, code, exec);
 }
 
 /**
@@ -387,9 +396,10 @@ export async function createInvoiceJournalEntry(
   exec: DbOrTx = db
 ) {
   const entryNumber = await getNextEntryNumber(ctx.organizationId, exec);
+  const codes = await getControlCodesForOrg(ctx.organizationId);
 
   // Find AR account
-  const arAccount = await findAccountByCode(ctx.organizationId, "1200", exec);
+  const arAccount = await findAccountByCode(ctx.organizationId, codes.ar, exec);
 
   if (!arAccount) return null;
 
@@ -425,7 +435,9 @@ export async function createInvoiceJournalEntry(
 
   // CR Tax Liability if any
   if (invoiceData.taxTotal > 0) {
-    const taxAccount = await findAccountByCode(ctx.organizationId, "2200", exec);
+    const taxAccount = codes.outputVat
+      ? await findAccountByCode(ctx.organizationId, codes.outputVat, exec)
+      : null;
     if (taxAccount) {
       lines.push({
         journalEntryId: entry.id,
@@ -510,7 +522,8 @@ export async function createBillJournalEntry(
   }
 ) {
   const entryNumber = await getNextEntryNumber(ctx.organizationId);
-  const apAccount = await findAccountByCode(ctx.organizationId, "2100");
+  const codes = await getControlCodesForOrg(ctx.organizationId);
+  const apAccount = await findAccountByCode(ctx.organizationId, codes.ap);
 
   if (!apAccount) return null;
 
@@ -752,7 +765,8 @@ export async function createCreditNoteJournalEntry(
   exec: DbOrTx = db
 ) {
   const entryNumber = await getNextEntryNumber(ctx.organizationId, exec);
-  const arAccount = await findAccountByCode(ctx.organizationId, "1200", exec);
+  const codes = await getControlCodesForOrg(ctx.organizationId);
+  const arAccount = await findAccountByCode(ctx.organizationId, codes.ar, exec);
   if (!arAccount) return null;
 
   const [entry] = await exec
@@ -787,7 +801,9 @@ export async function createCreditNoteJournalEntry(
 
   // DR Tax Liability (reverse of invoice CR tax)
   if (data.taxTotal > 0) {
-    const taxAccount = await findAccountByCode(ctx.organizationId, "2200", exec);
+    const taxAccount = codes.outputVat
+      ? await findAccountByCode(ctx.organizationId, codes.outputVat, exec)
+      : null;
     if (taxAccount) {
       lines.push({
         journalEntryId: entry.id,
@@ -851,7 +867,8 @@ export async function createDebitNoteJournalEntry(
   }
 ) {
   const entryNumber = await getNextEntryNumber(ctx.organizationId);
-  const apAccount = await findAccountByCode(ctx.organizationId, "2100");
+  const codes = await getControlCodesForOrg(ctx.organizationId);
+  const apAccount = await findAccountByCode(ctx.organizationId, codes.ap);
   if (!apAccount) return null;
 
   const [entry] = await db
@@ -886,7 +903,9 @@ export async function createDebitNoteJournalEntry(
 
   // CR Tax Input (reverse of bill DR tax)
   if (data.taxTotal > 0) {
-    const taxInputAccount = await findAccountByCode(ctx.organizationId, "1500");
+    const taxInputAccount = codes.inputVat
+      ? await findAccountByCode(ctx.organizationId, codes.inputVat)
+      : null;
     if (taxInputAccount) {
       lines.push({
         journalEntryId: entry.id,
@@ -951,13 +970,14 @@ export async function createPaymentJournalEntry(
   tx: Tx
 ) {
   const entryNumber = await getNextEntryNumber(ctx.organizationId, tx);
+  const codes = await getControlCodesForOrg(ctx.organizationId);
   const bankAccount = await findAccountByCode(
     ctx.organizationId,
     paymentData.bankAccountCode || "1100"
   );
   const counterAccount = await findAccountByCode(
     ctx.organizationId,
-    paymentData.type === "invoice" ? "1200" : "2100"
+    paymentData.type === "invoice" ? codes.ar : codes.ap
   );
 
   if (!bankAccount || !counterAccount) return null;
