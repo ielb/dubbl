@@ -2373,6 +2373,7 @@ function BudgetDrawer({ open, onClose }: { open: boolean; onClose: () => void })
 // ---------------------------------------------------------------------------
 function EmployeeDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const router = useRouter();
+  const orgCurrency = useOrganization()?.defaultCurrency ?? "USD";
   const [saving, setSaving] = useState(false);
   const [empName, setEmpName] = useState("");
   const [email, setEmail] = useState("");
@@ -2383,16 +2384,16 @@ function EmployeeDrawer({ open, onClose }: { open: boolean; onClose: () => void 
   const [taxRate, setTaxRate] = useState("20");
   const [bankAccountNumber, setBankAccountNumber] = useState("");
   const [empStartDate, setEmpStartDate] = useState(new Date().toISOString().split("T")[0]);
-  const [empCurrency, setEmpCurrency] = useState("USD");
+  const [empCurrency, setEmpCurrency] = useState(orgCurrency);
 
   useEffect(() => {
     if (!open) {
       setEmpName(""); setEmail(""); setEmployeeNumber(""); setPosition("");
       setSalary(""); setPayFrequency("monthly"); setTaxRate("20");
       setBankAccountNumber(""); setEmpStartDate(new Date().toISOString().split("T")[0]);
-      setEmpCurrency("USD");
+      setEmpCurrency(orgCurrency);
     }
-  }, [open]);
+  }, [open, orgCurrency]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -2808,10 +2809,11 @@ function RecurringDrawer({ open, onClose }: { open: boolean; onClose: () => void
 // Account Drawer
 // ---------------------------------------------------------------------------
 function AccountDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const orgCurrency = useOrganization()?.defaultCurrency ?? "USD";
   const [saving, setSaving] = useState(false);
-  const [acctCurrency, setAcctCurrency] = useState("USD");
+  const [acctCurrency, setAcctCurrency] = useState(orgCurrency);
 
-  useEffect(() => { if (!open) setAcctCurrency("USD"); }, [open]);
+  useEffect(() => { if (!open) setAcctCurrency(orgCurrency); }, [open, orgCurrency]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -2923,12 +2925,13 @@ const BANK_ACCOUNT_COLORS = [
 
 function BankAccountDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const router = useRouter();
+  const orgCurrency = useOrganization()?.defaultCurrency ?? "USD";
   const [saving, setSaving] = useState(false);
   const [accountName, setAccountName] = useState("");
   const [bankName, setBankName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [accountType, setAccountType] = useState("checking");
-  const [currencyCode, setCurrencyCode] = useState("USD");
+  const [currencyCode, setCurrencyCode] = useState(orgCurrency);
   const [countryCode, setCountryCode] = useState("");
   const [color, setColor] = useState(BANK_ACCOUNT_COLORS[0]);
   // Optional: connect to a specific ledger account. Left blank, the account is
@@ -2938,10 +2941,10 @@ function BankAccountDrawer({ open, onClose }: { open: boolean; onClose: () => vo
   useEffect(() => {
     if (!open) {
       setAccountName(""); setBankName(""); setAccountNumber("");
-      setAccountType("checking"); setCurrencyCode("USD"); setCountryCode("");
+      setAccountType("checking"); setCurrencyCode(orgCurrency); setCountryCode("");
       setColor(BANK_ACCOUNT_COLORS[0]); setChartAccountId("");
     }
-  }, [open]);
+  }, [open, orgCurrency]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -3634,18 +3637,19 @@ function BankTransferDrawer({ open, onClose }: { open: boolean; onClose: () => v
 
 function ContractorDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const router = useRouter();
+  const orgCurrency = useOrganization()?.defaultCurrency ?? "USD";
   const [saving, setSaving] = useState(false);
   const [cName, setCName] = useState("");
   const [cEmail, setCEmail] = useState("");
   const [cCompany, setCCompany] = useState("");
   const [cRate, setCRate] = useState("");
-  const [cCurrency, setCCurrency] = useState("USD");
+  const [cCurrency, setCCurrency] = useState(orgCurrency);
 
   useEffect(() => {
     if (!open) {
-      setCName(""); setCEmail(""); setCCompany(""); setCRate(""); setCCurrency("USD");
+      setCName(""); setCEmail(""); setCCompany(""); setCRate(""); setCCurrency(orgCurrency);
     }
-  }, [open]);
+  }, [open, orgCurrency]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
