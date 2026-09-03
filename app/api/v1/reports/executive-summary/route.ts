@@ -196,13 +196,13 @@ export async function GET(request: Request) {
       makeKpi("accountsPayable", "Accounts Payable", apCurrent, apPrior),
     ];
 
-    if (format === "pdf" || format === "xlsx") {
-      const org = await db.query.organization.findFirst({
-        where: eq(organization.id, ctx.organizationId),
-        columns: { defaultCurrency: true },
-      });
-      const currency = org?.defaultCurrency || "USD";
+    const org = await db.query.organization.findFirst({
+      where: eq(organization.id, ctx.organizationId),
+      columns: { defaultCurrency: true },
+    });
+    const currency = org?.defaultCurrency || "USD";
 
+    if (format === "pdf" || format === "xlsx") {
       const statement: Statement = {
         title: "Executive Summary",
         periodLabel: `${startDate} to ${endDate} (vs ${priorStart} to ${priorEnd})`,
@@ -244,6 +244,7 @@ export async function GET(request: Request) {
       period: { startDate, endDate },
       priorPeriod: { startDate: priorStart, endDate: priorEnd },
       basis,
+      currency,
       kpis,
     });
   } catch (err) {

@@ -77,6 +77,7 @@ export async function GET(request: Request) {
       boxes,
       period: { startDate, endDate },
       basis,
+      currency: config.baseCurrency,
     });
   } catch (err) {
     return handleError(err);

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { useDocumentTitle } from "@/lib/hooks/use-document-title";
+import { useOrganization } from "@/components/dashboard/org-loader";
 
 interface TvaBox {
   box: string;
@@ -27,6 +28,7 @@ export default function TvaDeclarationPage() {
   const [endDate, setEndDate] = useState(now.toISOString().slice(0, 10));
   const [boxes, setBoxes] = useState<TvaBox[]>([]);
   const [loading, setLoading] = useState(true);
+  const currency = useOrganization()?.defaultCurrency ?? "USD";
   useDocumentTitle("Tax · TVA Declaration");
 
   useEffect(() => {
@@ -96,7 +98,7 @@ export default function TvaDeclarationPage() {
                   "mt-1 text-2xl font-bold font-mono tabular-nums",
                   netTva >= 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"
                 )}>
-                  {formatMoney(Math.abs(netTva))}
+                  {formatMoney(Math.abs(netTva), currency)}
                 </p>
               </div>
               <div className={cn(
@@ -153,7 +155,7 @@ export default function TvaDeclarationPage() {
                       isKey && netTva >= 0 && "text-red-600 dark:text-red-400",
                       isKey && netTva < 0 && "text-emerald-600 dark:text-emerald-400"
                     )}>
-                      {formatMoney(Math.abs(b.amount))}
+                      {formatMoney(Math.abs(b.amount), currency)}
                     </p>
                   </div>
                 );
@@ -168,11 +170,11 @@ export default function TvaDeclarationPage() {
             </h3>
             <div className="mt-4 flex items-center justify-between text-sm">
               <span className="text-muted-foreground">TVA facturee (output)</span>
-              <span className="font-mono tabular-nums font-medium">{formatMoney(outputTva)}</span>
+              <span className="font-mono tabular-nums font-medium">{formatMoney(outputTva, currency)}</span>
             </div>
             <div className="mt-2 flex items-center justify-between text-sm">
               <span className="text-muted-foreground">TVA deductible (input)</span>
-              <span className="font-mono tabular-nums font-medium">{formatMoney(inputTva)}</span>
+              <span className="font-mono tabular-nums font-medium">{formatMoney(inputTva, currency)}</span>
             </div>
           </div>
         </ContentReveal>

@@ -43,6 +43,12 @@ export async function GET(request: Request) {
       { method, basis }
     );
 
+    const org = await db.query.organization.findFirst({
+      where: eq(organization.id, ctx.organizationId),
+      columns: { defaultCurrency: true },
+    });
+    const currency = org?.defaultCurrency || "USD";
+
     // --- Backward-compatible flat sections -------------------------------
     // The original response exposed flat operating/investing/financing line
     // arrays with per-section totals + a `netCashFlow`. Preserve those exact
@@ -61,11 +67,6 @@ export async function GET(request: Request) {
     }));
 
     if (format === "pdf" || format === "xlsx") {
-      const org = await db.query.organization.findFirst({
-        where: eq(organization.id, ctx.organizationId),
-        columns: { defaultCurrency: true },
-      });
-      const currency = org?.defaultCurrency || "USD";
       const statement = buildStatement(cf, operating, investing, financing, currency);
 
       const { toPdf, toXlsx } = await import("@/lib/reports/statement-export");
@@ -91,6 +92,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       startDate,
       endDate,
+      currency,
       // New: reporting controls echoed back.
       basis,
       method,

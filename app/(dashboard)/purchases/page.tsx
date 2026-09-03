@@ -35,6 +35,7 @@ import { useDocumentTitle } from "@/lib/hooks/use-document-title";
 import { BrandLoader } from "@/components/dashboard/brand-loader";
 import { ContentReveal } from "@/components/ui/content-reveal";
 import { motion, MotionConfig } from "motion/react";
+import { useOrganization } from "@/components/dashboard/org-loader";
 
 interface Bill {
   id: string;
@@ -176,6 +177,7 @@ function buildColumns(): Column<Bill>[] {
 export default function BillsPage() {
   const router = useRouter();
   const { open: openDrawer } = useCreateDrawer();
+  const currency = useOrganization()?.defaultCurrency ?? "USD";
   const [bills, setBills] = useState<Bill[]>([]);
   const [allBills, setAllBills] = useState<Bill[]>([]);
   const [countsData, setCountsData] = useState<{ counts: Record<string, { count: number; amount: number }>; total: number } | null>(null);
@@ -502,7 +504,7 @@ export default function BillsPage() {
             <div>
               <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Total Outstanding</p>
               <p className="mt-1 text-3xl sm:text-4xl font-bold font-mono tabular-nums tracking-tighter">
-                {formatMoney(outstanding)}
+                {formatMoney(outstanding, currency)}
               </p>
             </div>
             <div className="flex gap-6 sm:gap-8">
@@ -511,7 +513,7 @@ export default function BillsPage() {
                   <span className="size-1.5 rounded-full bg-red-500" />Overdue
                 </p>
                 <p className="mt-0.5 text-lg font-semibold font-mono tabular-nums text-red-600 dark:text-red-400">
-                  {formatMoney(overdue)}
+                  {formatMoney(overdue, currency)}
                 </p>
               </div>
               <div>
