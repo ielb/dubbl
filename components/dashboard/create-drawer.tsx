@@ -61,6 +61,7 @@ import { WarehousePicker } from "@/components/dashboard/warehouse-picker";
 import { CategoryPicker } from "@/components/dashboard/category-picker";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { formatMoney, decimalToCents, decimalToMinorUnits } from "@/lib/money";
+import { useOrganization } from "@/components/dashboard/org-loader";
 
 type DrawerType = "contact" | "project" | "invoice" | "bill" | "entry" | "inventory" | "quote" | "salesReceipt" | "purchaseOrder" | "expense" | "fixedAsset" | "budget" | "employee" | "creditNote" | "recurring" | "account" | "bankAccount" | "warehouse" | "stockTake" | "category" | "transfer" | "bankTransfer" | "contractor" | "deal" | "debitNote" | "customerCredit" | "loan" | "openingBalance" | "accrualSchedule" | "revenueSchedule" | "recurringJournal";
 
@@ -1595,6 +1596,7 @@ interface ExpenseTaxRateOption {
 
 function ExpenseDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const router = useRouter();
+  const currency = useOrganization()?.defaultCurrency ?? "USD";
   const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -1772,7 +1774,7 @@ function ExpenseDrawer({ open, onClose }: { open: boolean; onClose: () => void }
                     {item.isMileage && (
                       <div className="flex items-center justify-between rounded-md bg-muted/40 px-3 py-2 text-sm">
                         <span className="text-muted-foreground">Computed amount</span>
-                        <span className="font-mono font-medium tabular-nums">{formatMoney(decimalToCents(itemAmount(item)))}</span>
+                        <span className="font-mono font-medium tabular-nums">{formatMoney(decimalToCents(itemAmount(item)), currency)}</span>
                       </div>
                     )}
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1811,7 +1813,7 @@ function ExpenseDrawer({ open, onClose }: { open: boolean; onClose: () => void }
 
             <div className="flex items-center justify-between rounded-lg border bg-muted/50 px-4 py-3">
               <span className="text-sm font-medium">Total</span>
-              <span className="text-lg font-bold font-mono tabular-nums">{formatMoney(total)}</span>
+              <span className="text-lg font-bold font-mono tabular-nums">{formatMoney(total, currency)}</span>
             </div>
           </div>
           <DrawerFooter onClose={onClose} saving={saving} label="Create Expense Claim" />
@@ -2071,6 +2073,7 @@ interface BudgetAccount {
 
 function BudgetDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const router = useRouter();
+  const currency = useOrganization()?.defaultCurrency ?? "USD";
   const [saving, setSaving] = useState(false);
   const [budgetName, setBudgetName] = useState("");
   const [startDate, setStartDate] = useState(`${new Date().getFullYear()}-01-01`);
@@ -2309,7 +2312,7 @@ function BudgetDrawer({ open, onClose }: { open: boolean; onClose: () => void })
                       />
                       {line.total > 0 && line.periods.length > 0 && (
                         <span className="text-xs text-muted-foreground font-mono tabular-nums shrink-0">
-                          {formatMoney(Math.floor(line.total / line.periods.length))}/period
+                          {formatMoney(Math.floor(line.total / line.periods.length), currency)}/period
                         </span>
                       )}
                     </div>
@@ -2355,7 +2358,7 @@ function BudgetDrawer({ open, onClose }: { open: boolean; onClose: () => void })
           {grandTotal > 0 && (
             <div className="flex items-center justify-between border-t px-4 py-2.5 sm:px-6 text-sm">
               <span className="text-muted-foreground">Total budget</span>
-              <span className="font-mono font-semibold tabular-nums">{formatMoney(grandTotal)}</span>
+              <span className="font-mono font-semibold tabular-nums">{formatMoney(grandTotal, currency)}</span>
             </div>
           )}
           <DrawerFooter onClose={onClose} saving={saving} label="Create Budget" />

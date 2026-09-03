@@ -35,6 +35,7 @@ import { cn } from "@/lib/utils";
 import { useCreateDrawer } from "@/components/dashboard/create-drawer";
 import { CashFlowWidget } from "@/components/dashboard/cash-flow-widget";
 import { useDocumentTitle } from "@/lib/hooks/use-document-title";
+import { useOrganization } from "@/components/dashboard/org-loader";
 
 const GREETINGS_MORNING = [
   "Good morning",
@@ -296,6 +297,8 @@ export default function DashboardPage() {
   // Getting-started checklist: show while the org has never completed onboarding.
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [dismissingOnboarding, setDismissingOnboarding] = useState(false);
+  const org = useOrganization();
+  const currency = org?.defaultCurrency ?? "USD";
 
   useDocumentTitle("Dashboard \u00B7 Overview");
 
@@ -389,17 +392,16 @@ export default function DashboardPage() {
       .then((data) => setActionAlerts(data))
       .catch(() => {});
 
-    // Decide whether to show the getting-started checklist (org never onboarded).
-    fetch("/api/v1/organization", { headers })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.organization && !data.organization.onboardingCompletedAt) {
-          setShowOnboarding(true);
-        }
-      })
-      .catch(() => {});
-
   }, []);
+
+  // Show the getting-started checklist while the org has never completed
+  // onboarding (org comes from the shared OrgLoader context, no extra fetch).
+  useEffect(() => {
+    if (org && !org.onboardingCompletedAt) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setShowOnboarding(true);
+    }
+  }, [org]);
 
   const dismissOnboarding = () => {
     setDismissingOnboarding(true);
@@ -636,33 +638,33 @@ export default function DashboardPage() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               <StatCard
                 title="Revenue"
-                value={formatMoney(pnl.totalRevenue)}
+                value={formatMoney(pnl.totalRevenue, currency)}
                 icon={TrendingUp}
                 sparklineData={sparklines.revenue.length > 1 ? sparklines.revenue : undefined}
               />
               <StatCard
                 title="Expenses"
-                value={formatMoney(pnl.totalExpenses)}
+                value={formatMoney(pnl.totalExpenses, currency)}
                 icon={TrendingDown}
                 sparklineData={sparklines.expenses.length > 1 ? sparklines.expenses : undefined}
               />
               <StatCard
                 title="Net Income"
-                value={formatMoney(pnl.netIncome)}
+                value={formatMoney(pnl.netIncome, currency)}
                 icon={DollarSign}
                 changeType={pnl.netIncome >= 0 ? "positive" : "negative"}
                 sparklineData={sparklines.netIncome.length > 1 ? sparklines.netIncome : undefined}
               />
               <StatCard
                 title="Receivables"
-                value={formatMoney(receivables.grandTotal)}
+                value={formatMoney(receivables.grandTotal, currency)}
                 icon={ArrowDownLeft}
                 change={`${receivablesCount} outstanding`}
                 changeType="neutral"
               />
               <StatCard
                 title="Payables"
-                value={formatMoney(payables.grandTotal)}
+                value={formatMoney(payables.grandTotal, currency)}
                 icon={ArrowUpRight}
                 change={`${payablesCount} outstanding`}
                 changeType="neutral"

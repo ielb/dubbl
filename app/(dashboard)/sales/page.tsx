@@ -26,6 +26,7 @@ import { useCreateDrawer } from "@/components/dashboard/create-drawer";
 import { BrandLoader } from "@/components/dashboard/brand-loader";
 import { ErrorState } from "@/components/dashboard/error-state";
 import { ContentReveal } from "@/components/ui/content-reveal";
+import { useOrganization } from "@/components/dashboard/org-loader";
 
 interface Invoice {
   id: string;
@@ -195,6 +196,7 @@ function buildColumns(
 export default function InvoicesPage() {
   const router = useRouter();
   const { open: openDrawer } = useCreateDrawer();
+  const currency = useOrganization()?.defaultCurrency ?? "USD";
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [initialLoad, setInitialLoad] = useState(true);
@@ -536,8 +538,8 @@ export default function InvoicesPage() {
     <ContentReveal className="space-y-6">
       {/* Top: Stats */}
       <div className="grid gap-3 sm:grid-cols-3">
-        <StatCard title="Outstanding" value={formatMoney(outstanding)} icon={FileText} />
-        <StatCard title="Overdue" value={formatMoney(overdue)} icon={FileText} changeType="negative" />
+        <StatCard title="Outstanding" value={formatMoney(outstanding, currency)} icon={FileText} />
+        <StatCard title="Overdue" value={formatMoney(overdue, currency)} icon={FileText} changeType="negative" />
         <StatCard title="Total Invoices" value={invoiceCount.toString()} icon={FileText} />
       </div>
 

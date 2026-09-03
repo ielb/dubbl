@@ -1,11 +1,33 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import { Logo } from "@/components/shared/logo";
+
+/** The org fields consumers actually need (a subset of the full API response). */
+export interface OrganizationData {
+  id: string;
+  name: string;
+  defaultCurrency: string;
+  countryCode: string | null;
+  onboardingCompletedAt: string | null;
+}
+
+const OrganizationContext = createContext<OrganizationData | null>(null);
+
+/**
+ * The current org's data, loaded once by OrgLoader (the outermost dashboard
+ * wrapper — see app/(dashboard)/layout.tsx) and shared here instead of every
+ * page independently re-fetching /api/v1/organization. Null only outside
+ * OrgLoader's tree; OrgLoader itself never renders children until this is set.
+ */
+export function useOrganization(): OrganizationData | null {
+  return useContext(OrganizationContext);
+}
 
 export function OrgLoader({ children }: { children: React.ReactNode }) {
   const FADE_DURATION_MS = 400;
   const [state, setState] = useState<"loading" | "ready" | "fading">("loading");
+  const [org, setOrg] = useState<OrganizationData | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -29,19 +51,20 @@ export function OrgLoader({ children }: { children: React.ReactNode }) {
       .then((r) => r.json())
       .then((data) => {
         // Single org response (header was sent)
-        const org = data.organization
+        const resolvedOrg = data.organization
           // List response (no header) - pick the first org
           ?? data.organizations?.[0];
 
-        if (org) {
+        if (resolvedOrg) {
           // Persist resolved org for OAuth users who don't have it set yet
-          if (!orgId && org.id) {
-            localStorage.setItem("activeOrgId", org.id);
+          if (!orgId && resolvedOrg.id) {
+            localStorage.setItem("activeOrgId", resolvedOrg.id);
           }
-          if (org.country === null) {
+          if (resolvedOrg.country === null) {
             window.location.href = "/onboarding";
             return;
           }
+          if (isMounted) setOrg(resolvedOrg);
         } else {
           // User has no orgs at all, redirect to onboarding
           window.location.href = "/onboarding";
@@ -73,7 +96,9 @@ export function OrgLoader({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       )}
-      {state === "ready" && children}
+      {state === "ready" && (
+        <OrganizationContext.Provider value={org}>{children}</OrganizationContext.Provider>
+      )}
     </>
   );
 }
