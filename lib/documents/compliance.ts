@@ -371,6 +371,22 @@ const rules: ComplianceRule[] = [
     check: (org) => !org.taxId,
   },
 
+  // ── MA - Morocco ──
+  {
+    countries: ["MA"],
+    field: "org.taxId",
+    severity: "error",
+    message: "ICE (Identifiant Commun de l'Entreprise) is required for Moroccan invoices",
+    check: (org) => !org.taxId,
+  },
+  {
+    countries: ["MA"],
+    field: "org.businessRegistrationNumber",
+    severity: "warning",
+    message: "IF (Identifiant Fiscal) is recommended for Moroccan invoices",
+    check: (org) => !org.businessRegistrationNumber,
+  },
+
   // ── Fallback for all other countries (not US) ──
   {
     countries: "*",
@@ -381,7 +397,7 @@ const rules: ComplianceRule[] = [
       const c = org.countryCode?.toUpperCase();
       if (!c) return false;
       const covered = [
-        ...EU_COUNTRIES, "GB", "IN", "SG", "SA", "JP", "BR", "AU", "NZ", "CA", "US",
+        ...EU_COUNTRIES, "GB", "IN", "SG", "SA", "JP", "BR", "AU", "NZ", "CA", "US", "MA",
       ];
       return !covered.includes(c);
     },
@@ -396,7 +412,7 @@ const rules: ComplianceRule[] = [
       const c = org.countryCode?.toUpperCase();
       if (!c) return false;
       const covered = [
-        ...EU_COUNTRIES, "GB", "DE", "FR", "IN", "SG", "SA", "JP", "BR", "AU", "NZ", "CA", "US",
+        ...EU_COUNTRIES, "GB", "DE", "FR", "IN", "SG", "SA", "JP", "BR", "AU", "NZ", "CA", "US", "MA",
       ];
       return !covered.includes(c);
     },

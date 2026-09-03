@@ -16,6 +16,7 @@ import { notDeleted } from "@/lib/db/soft-delete";
 import { logAudit } from "@/lib/api/audit";
 import { getNextNumber } from "@/lib/api/numbering";
 import { decimalToMinorUnits } from "@/lib/money";
+import { getControlCodesForOrg } from "@/lib/api/control-account-codes";
 import {
   calculateSimpleInterest,
   calculateCompoundInterest,
@@ -171,11 +172,12 @@ export async function POST(
       })
       .returning();
 
-    // Find AR account (code 1200) and Interest Income account (code 4100)
+    // Find AR account (country-resolved code) and Interest Income account (code 4100)
+    const codes = await getControlCodesForOrg(ctx.organizationId);
     const arAccount = await db.query.chartAccount.findFirst({
       where: and(
         eq(chartAccount.organizationId, ctx.organizationId),
-        eq(chartAccount.code, "1200")
+        eq(chartAccount.code, codes.ar)
       ),
     });
 

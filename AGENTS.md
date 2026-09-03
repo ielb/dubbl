@@ -23,3 +23,17 @@
 - All schema changes require Drizzle migration files -- run `npx drizzle-kit generate` after modifying any file in `lib/db/schema/`
 - Never use `npx drizzle-kit push` in production -- it applies changes directly without migrations
 - Migration files live in `drizzle/` and must be committed alongside schema changes
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in this repo's GitHub Issues (`ielb/dubbl`), via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout (root `CONTEXT.md` + `docs/adr/`). See `docs/agents/domain.md`.

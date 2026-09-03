@@ -33,6 +33,7 @@ import {
   ensureAccountByCode,
   createCogsJournalEntry,
 } from "@/lib/api/journal-automation";
+import { getControlCodesForOrg } from "@/lib/api/control-account-codes";
 import { ensureBankLedgerAccount } from "@/lib/api/bank-ledger";
 import type { AuthContext } from "@/lib/api/auth-context";
 
@@ -813,9 +814,10 @@ export function registerSalesReceiptTools(server: McpServer, ctx: AuthContext) {
           "PAY"
         );
 
+        const codes = await getControlCodesForOrg(ctx.organizationId);
         const result = await db.transaction(async (tx) => {
-          const arAccount = await findAccountByCode(ctx.organizationId, "1200", tx);
-          if (!arAccount) throw new Error("Accounts Receivable account (1200) not found");
+          const arAccount = await findAccountByCode(ctx.organizationId, codes.ar, tx);
+          if (!arAccount) throw new Error(`Accounts Receivable account (${codes.ar}) not found`);
           const deposits = await ensureControlAccount(
             ctx.organizationId,
             "customerDeposits",
@@ -973,8 +975,9 @@ export function registerSalesReceiptTools(server: McpServer, ctx: AuthContext) {
           found.issueDate
         );
 
-        const arAccount = await findAccountByCode(ctx.organizationId, "1200");
-        if (!arAccount) throw new Error("Accounts Receivable account (1200) not found");
+        const codes = await getControlCodesForOrg(ctx.organizationId);
+        const arAccount = await findAccountByCode(ctx.organizationId, codes.ar);
+        if (!arAccount) throw new Error(`Accounts Receivable account (${codes.ar}) not found`);
 
         // Loss side: direct → Bad Debt Expense (6500); allowance → Allowance for
         // Doubtful Accounts (1290) (the allowance was previously provided for).

@@ -30,6 +30,10 @@ function getFilingTabs(countryCode: string | null) {
     );
   }
 
+  if (countryCode === "MA") {
+    tabs.push({ href: "/tax/tva-declaration", label: "TVA Declaration", icon: Globe });
+  }
+
   return tabs;
 }
 

@@ -66,6 +66,7 @@ export const COUNTRIES: Country[] = [
   { code: "ZA", name: "South Africa", flag: "\u{1F1FF}\u{1F1E6}", defaultCurrency: "ZAR" },
   { code: "NG", name: "Nigeria", flag: "\u{1F1F3}\u{1F1EC}", defaultCurrency: "NGN" },
   { code: "KE", name: "Kenya", flag: "\u{1F1F0}\u{1F1EA}", defaultCurrency: "KES" },
+  { code: "MA", name: "Morocco", flag: "\u{1F1F2}\u{1F1E6}", defaultCurrency: "MAD" },
 ];
 
 export const BUSINESS_TYPES: Record<string, BusinessType[]> = {
@@ -513,6 +514,16 @@ export const BUSINESS_TYPES: Record<string, BusinessType[]> = {
     { code: "LP", localName: "Limited Partnership", englishName: "LP" },
     { code: "LTC", localName: "Look-Through Company", englishName: "Look-Through Company" },
     { code: "COOPERATIVE", localName: "Co-operative Company", englishName: "Cooperative" },
+  ],
+
+  // ── Morocco ──
+  MA: [
+    { code: "AUTO_ENTREPRENEUR", localName: "Auto-Entrepreneur", englishName: "Micro-Enterprise" },
+    { code: "EI", localName: "Entreprise Individuelle (EI)", englishName: "Sole Proprietorship" },
+    { code: "SARL", localName: "Société à Responsabilité Limitée (SARL)", englishName: "Limited Liability Company" },
+    { code: "SARL_AU", localName: "SARL à Associé Unique (SARL AU)", englishName: "Single-Member LLC" },
+    { code: "SA", localName: "Société Anonyme (SA)", englishName: "Public Limited Company" },
+    { code: "SNC", localName: "Société en Nom Collectif (SNC)", englishName: "General Partnership" },
   ],
 };
 

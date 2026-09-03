@@ -15,6 +15,7 @@ import {
   resolveBaseRate,
   toBaseLines,
 } from "@/lib/api/journal-automation";
+import { getControlCodesForOrg } from "@/lib/api/control-account-codes";
 import { z } from "zod";
 
 /**
@@ -77,9 +78,10 @@ export async function POST(
     );
 
     // AR control account is required for either action.
-    const arAccount = await findAccountByCode(ctx.organizationId, "1200");
+    const codes = await getControlCodesForOrg(ctx.organizationId);
+    const arAccount = await findAccountByCode(ctx.organizationId, codes.ar);
     if (!arAccount) {
-      return validationError("Accounts Receivable account (1200) not found");
+      return validationError(`Accounts Receivable account (${codes.ar}) not found`);
     }
 
     if (body.action === "recover") {

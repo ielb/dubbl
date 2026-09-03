@@ -49,6 +49,7 @@ import {
   resolveBaseRate,
   toBaseLines,
 } from "@/lib/api/journal-automation";
+import { getControlCodesForOrg } from "@/lib/api/control-account-codes";
 // Reuse the shared three-way-match engine + settings reader from the
 // procurement helper (owned by the PO/GRN agent) so tolerance semantics stay
 // consistent across the codebase.
@@ -363,7 +364,8 @@ export async function postGrniClearingEntry(
 
   const grniAcct = await ensureControlAccount(ctx.organizationId, "grni", base, tx);
   const ppvAcct = await ensureControlAccount(ctx.organizationId, "purchasePriceVariance", base, tx);
-  const apAcct = await findAccountByCode(ctx.organizationId, "2100", tx);
+  const codes = await getControlCodesForOrg(ctx.organizationId);
+  const apAcct = await findAccountByCode(ctx.organizationId, codes.ap, tx);
   if (!grniAcct || !ppvAcct || !apAcct) return { entryId: null, revaluations: [] };
 
   const entryNumber = await getNextEntryNumber(ctx.organizationId, tx);

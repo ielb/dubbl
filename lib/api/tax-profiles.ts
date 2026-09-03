@@ -102,9 +102,17 @@ const US_SALES_CONTROL: ProfileControlAccounts = {
   output: "2230",
 };
 
+// Morocco's chart-of-accounts template (lib/db/chart-templates/ma.ts) uses the
+// real PCGE codes for VAT control accounts, unlike the generic-chart countries
+// above which share the generic template's 2200/1500/2240 codes.
+const MA_TVA_CONTROL: ProfileControlAccounts = {
+  output: "4455", // Etat, TVA facturee
+  input: "3455", // Etat, TVA recuperable
+};
+
 /**
  * The country tax profiles, keyed by uppercase ISO country code.
- * Covers: US, GB, ZA, AU, CA, IE, IN, NL.
+ * Covers: US, GB, ZA, AU, CA, IE, IN, NL, MA.
  */
 export const COUNTRY_TAX_PROFILES: Record<string, CountryTaxProfile> = {
   US: {
@@ -274,6 +282,30 @@ export const COUNTRY_TAX_PROFILES: Record<string, CountryTaxProfile> = {
       { box: "5c", label: "Net VAT payable / refundable" },
     ],
     controlAccounts: VAT_CONTROL,
+  },
+  MA: {
+    country: "MA",
+    countryName: "Morocco",
+    regime: "vat",
+    taxName: "TVA",
+    rates: [
+      { name: "Standard Rate (20%)", rate: 2000, type: "both", kind: "standard", recoverablePercent: 10000, isDefault: true },
+      { name: "Reduced Rate (14%)", rate: 1400, type: "both", kind: "standard", recoverablePercent: 10000 },
+      { name: "Reduced Rate (10%)", rate: 1000, type: "both", kind: "standard", recoverablePercent: 10000 },
+      { name: "Reduced Rate (7%)", rate: 700, type: "both", kind: "standard", recoverablePercent: 10000 },
+      { name: "Exonere (Exempt)", rate: 0, type: "both", kind: "exempt", recoverablePercent: 0 },
+      { name: "No TVA", rate: 0, type: "both", kind: "no_vat", recoverablePercent: 0 },
+    ],
+    // Box labels approximate the DGI "Declaration de la TVA" layout; exact
+    // official box numbering is not verified against the primary DGI form and
+    // should be confirmed before relying on this for actual tax filing.
+    returnBoxes: [
+      { box: "1", label: "Chiffre d'affaires imposable (base imposable)" },
+      { box: "2", label: "TVA facturee (output TVA)" },
+      { box: "3", label: "TVA deductible / recuperable (input TVA)" },
+      { box: "4", label: "TVA due / Credit de TVA (Box 2 - Box 3)" },
+    ],
+    controlAccounts: MA_TVA_CONTROL,
   },
 };
 
