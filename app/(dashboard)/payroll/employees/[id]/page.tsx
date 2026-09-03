@@ -25,6 +25,7 @@ import { useConfirm } from "@/lib/hooks/use-confirm";
 import { useDocumentTitle } from "@/lib/hooks/use-document-title";
 import { CurrencySelect } from "@/components/ui/currency-select";
 import { cn } from "@/lib/utils";
+import { useOrganization } from "@/components/dashboard/org-loader";
 
 interface EmployeeDetail {
   id: string;
@@ -99,6 +100,7 @@ function getPerPeriodPay(salary: number, frequency: string): number {
 export default function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const orgCurrency = useOrganization()?.defaultCurrency ?? "USD";
   const [emp, setEmp] = useState<EmployeeDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -132,7 +134,7 @@ export default function EmployeeDetailPage() {
   const [isActive, setIsActive] = useState(true);
   const [compensationType, setCompensationType] = useState("salary");
   const [hourlyRate, setHourlyRate] = useState("");
-  const [currency, setCurrency] = useState("USD");
+  const [currency, setCurrency] = useState(orgCurrency);
   useDocumentTitle("Payroll · Employee Details");
 
   const orgId =
@@ -163,11 +165,11 @@ export default function EmployeeDetailPage() {
           setIsActive(e.isActive);
           setCompensationType(e.compensationType || "salary");
           setHourlyRate(e.hourlyRate ? (e.hourlyRate / 100).toFixed(2) : "");
-          setCurrency(e.currency || "USD");
+          setCurrency(e.currency || orgCurrency);
         }
       })
       .finally(() => setLoading(false));
-  }, [id, orgId]);
+  }, [id, orgId, orgCurrency]);
 
   // Fetch deductions, tax config, leave balances, compensation band
   useEffect(() => {
