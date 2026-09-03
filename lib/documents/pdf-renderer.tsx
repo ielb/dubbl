@@ -75,6 +75,7 @@ function getTaxIdLabel(countryCode?: string | null): string {
   if (cc === "AU") return "ABN";
   if (cc === "NZ") return "GST";
   if (cc === "CA") return "GST/HST";
+  if (cc === "MA") return "ICE";
   return "Tax ID";
 }
 

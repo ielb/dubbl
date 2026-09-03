@@ -9,6 +9,7 @@ import { BE_ACCOUNTS } from "./be";
 import { AT_ACCOUNTS } from "./at";
 import { IT_ACCOUNTS } from "./it";
 import { PT_ACCOUNTS } from "./pt";
+import { MA_ACCOUNTS } from "./ma";
 
 /**
  * Maps country codes to their legally mandated or de facto standard
@@ -24,6 +25,7 @@ const COUNTRY_TEMPLATES: Record<string, AccountTemplate[]> = {
   BR: BR_ACCOUNTS, // CFC/ITG 1000 / SPED
   IT: IT_ACCOUNTS, // Piano dei Conti
   PT: PT_ACCOUNTS, // SNC (Sistema de Normalizacao Contabilistica)
+  MA: MA_ACCOUNTS, // Plan Comptable General des Entreprises (PCGE / CGNC)
   // De facto standard
   DE: DE_ACCOUNTS, // SKR03
   AT: AT_ACCOUNTS, // Einheitskontenrahmen (EKR)
