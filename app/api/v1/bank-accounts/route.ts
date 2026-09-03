@@ -11,12 +11,13 @@ import { checkResourceLimit, checkMultiCurrency } from "@/lib/api/check-limit";
 import { ensureBankLedgerAccount } from "@/lib/api/bank-ledger";
 import { z } from "zod";
 import { currencyCodeSchema } from "@/lib/currency/zod";
+import { resolveDocumentCurrency } from "@/lib/currency/resolve-currency";
 
 const createSchema = z.object({
   accountName: z.string().min(1),
   accountNumber: z.string().nullable().optional(),
   bankName: z.string().nullable().optional(),
-  currencyCode: currencyCodeSchema.default("USD"),
+  currencyCode: currencyCodeSchema.optional(),
   countryCode: z.string().length(2).nullable().optional(),
   accountType: z
     .enum(["checking", "savings", "credit_card", "cash", "loan", "investment", "other"])
@@ -52,9 +53,10 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const parsed = createSchema.parse(body);
+    const currencyCode = await resolveDocumentCurrency(ctx.organizationId, parsed.currencyCode);
 
     await checkResourceLimit(ctx.organizationId, bankAccount, bankAccount.organizationId, "bankAccounts", bankAccount.deletedAt);
-    await checkMultiCurrency(ctx.organizationId, parsed.currencyCode);
+    await checkMultiCurrency(ctx.organizationId, currencyCode);
 
     const created = await db.transaction(async (tx) => {
       const [row] = await tx
@@ -64,7 +66,7 @@ export async function POST(request: Request) {
           accountName: parsed.accountName,
           accountNumber: parsed.accountNumber || null,
           bankName: parsed.bankName || null,
-          currencyCode: parsed.currencyCode,
+          currencyCode,
           countryCode: parsed.countryCode || null,
           accountType: parsed.accountType,
           color: parsed.color,

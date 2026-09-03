@@ -14,6 +14,7 @@ import { assertNotLocked } from "@/lib/api/period-lock";
 import { preloadTaxRates, calcTax } from "@/lib/api/tax-calculator";
 import { z } from "zod";
 import { currencyCodeSchema } from "@/lib/currency/zod";
+import { resolveDocumentCurrency } from "@/lib/currency/resolve-currency";
 
 const lineSchema = z.object({
   description: z.string().min(1),
@@ -30,7 +31,7 @@ const createSchema = z.object({
   issueDate: z.string().min(1),
   reference: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
-  currencyCode: currencyCodeSchema.default("USD"),
+  currencyCode: currencyCodeSchema.optional(),
   lines: z.array(lineSchema).min(1),
 });
 
@@ -98,6 +99,11 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const parsed = createSchema.parse(body);
+    const currencyCode = await resolveDocumentCurrency(
+      ctx.organizationId,
+      parsed.currencyCode,
+      parsed.contactId
+    );
 
     await assertNotLocked(ctx.organizationId, parsed.issueDate);
 
@@ -110,7 +116,7 @@ export async function POST(request: Request) {
     // Calculate totals
     let subtotal = 0;
     const processedLines = parsed.lines.map((l, i) => {
-      const grossAmount = decimalToMinorUnits(l.quantity * l.unitPrice, parsed.currencyCode);
+      const grossAmount = decimalToMinorUnits(l.quantity * l.unitPrice, currencyCode);
       const discountAmount = l.discountPercent ? Math.round(grossAmount * l.discountPercent / 10000) : 0;
       const amount = grossAmount - discountAmount;
       subtotal += amount;
@@ -119,7 +125,7 @@ export async function POST(request: Request) {
       return {
         description: l.description,
         quantity: Math.round(l.quantity * 100),
-        unitPrice: decimalToMinorUnits(l.unitPrice, parsed.currencyCode),
+        unitPrice: decimalToMinorUnits(l.unitPrice, currencyCode),
         accountId: l.accountId || null,
         taxRateId,
         discountPercent: l.discountPercent,
@@ -147,7 +153,7 @@ export async function POST(request: Request) {
         total,
         amountApplied: 0,
         amountRemaining: 0,
-        currencyCode: parsed.currencyCode,
+        currencyCode,
         createdBy: ctx.userId,
       })
       .returning();

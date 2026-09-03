@@ -10,13 +10,14 @@ import { assertNotLocked } from "@/lib/api/period-lock";
 import { logAudit } from "@/lib/api/audit";
 import { z } from "zod";
 import { currencyCodeSchema } from "@/lib/currency/zod";
+import { resolveDocumentCurrency } from "@/lib/currency/resolve-currency";
 
 const updateLineSchema = z.object({
   accountId: z.string().min(1),
   description: z.string().nullable().optional(),
   debitAmount: z.number().int().min(0).default(0),
   creditAmount: z.number().int().min(0).default(0),
-  currencyCode: currencyCodeSchema.default("USD"),
+  currencyCode: currencyCodeSchema.optional(),
   exchangeRate: z.number().int().default(1000000),
   costCenterId: z.string().nullable().optional(),
   projectId: z.string().nullable().optional(),
@@ -98,6 +99,12 @@ export async function PUT(
 
     const body = await request.json();
     const parsed = updateSchema.parse(body);
+    const lines = await Promise.all(
+      parsed.lines.map(async (l) => ({
+        ...l,
+        currencyCode: await resolveDocumentCurrency(ctx.organizationId, l.currencyCode),
+      }))
+    );
 
     const existing = await db.query.journalEntry.findFirst({
       where: and(
@@ -127,8 +134,8 @@ export async function PUT(
     }
 
     // Re-validate balance on the new lines.
-    const totalDebit = parsed.lines.reduce((sum, l) => sum + l.debitAmount, 0);
-    const totalCredit = parsed.lines.reduce((sum, l) => sum + l.creditAmount, 0);
+    const totalDebit = lines.reduce((sum, l) => sum + l.debitAmount, 0);
+    const totalCredit = lines.reduce((sum, l) => sum + l.creditAmount, 0);
     if (totalDebit !== totalCredit) {
       return NextResponse.json(
         { error: "Debits must equal credits" },
@@ -158,7 +165,7 @@ export async function PUT(
       // Full line replace.
       await tx.delete(journalLine).where(eq(journalLine.journalEntryId, id));
       await tx.insert(journalLine).values(
-        parsed.lines.map((l) => ({
+        lines.map((l) => ({
           journalEntryId: id,
           accountId: l.accountId,
           description: l.description ?? null,

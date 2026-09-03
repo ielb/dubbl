@@ -35,7 +35,7 @@ const itemSchema = z.object({
 const createSchema = z.object({
   title: z.string().min(1),
   description: z.string().nullable().optional(),
-  currencyCode: currencyCodeSchema.default("USD"),
+  currencyCode: currencyCodeSchema.optional(),
   contactId: z.string().uuid().nullable().optional(),
   taxRateId: z.string().uuid().nullable().optional(),
   costCenterId: z.string().uuid().nullable().optional(),
@@ -83,11 +83,17 @@ export async function POST(
 
     const body = await request.json();
     const parsed = createSchema.parse(body);
+    // The bank transaction/account already carries the authoritative
+    // currency for this money movement — prefer it (and an explicit
+    // override) over a generic org/contact default, so the expense claim
+    // and the GL entry that reconciles it never disagree on currency.
+    const currencyCode =
+      parsed.currencyCode || transaction.currencyCode || account.currencyCode;
 
     // Calculate total from items
     let totalAmount = 0;
     const processedItems = parsed.items.map((item, i) => {
-      const amount = decimalToMinorUnits(item.amount, parsed.currencyCode);
+      const amount = decimalToMinorUnits(item.amount, currencyCode);
       totalAmount += amount;
       return {
         date: item.date,
@@ -152,8 +158,6 @@ export async function POST(
       );
     }
 
-    const currencyCode = transaction.currencyCode || account.currencyCode;
-
     // Pre-flight the FX rate so a missing rate fails cleanly (422) before writes.
     await assertBaseRateAvailable(ctx.organizationId, currencyCode, transaction.date);
 
@@ -167,7 +171,7 @@ export async function POST(
           description: parsed.description || null,
           submittedBy: ctx.userId,
           totalAmount,
-          currencyCode: parsed.currencyCode,
+          currencyCode,
         })
         .returning();
 
