@@ -8,12 +8,13 @@ import { handleError, notFound } from "@/lib/api/response";
 import { notDeleted } from "@/lib/db/soft-delete";
 import { z } from "zod";
 import { currencyCodeSchema } from "@/lib/currency/zod";
+import { resolveDocumentCurrency } from "@/lib/currency/resolve-currency";
 
 const addItemSchema = z.object({
   billId: z.string().min(1),
   contactId: z.string().min(1),
   amount: z.number().int().positive(),
-  currencyCode: currencyCodeSchema.default("USD"),
+  currencyCode: currencyCodeSchema.optional(),
 });
 
 const updateSchema = z.object({
@@ -107,8 +108,18 @@ export async function PATCH(
 
     // Add items
     if (parsed.addItems && parsed.addItems.length > 0) {
+      const itemsToAdd = await Promise.all(
+        parsed.addItems.map(async (item) => ({
+          ...item,
+          currencyCode: await resolveDocumentCurrency(
+            ctx.organizationId,
+            item.currencyCode,
+            item.contactId
+          ),
+        }))
+      );
       await db.insert(paymentBatchItem).values(
-        parsed.addItems.map((item) => ({
+        itemsToAdd.map((item) => ({
           batchId: id,
           billId: item.billId,
           contactId: item.contactId,

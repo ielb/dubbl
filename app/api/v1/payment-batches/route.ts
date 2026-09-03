@@ -9,17 +9,18 @@ import { notDeleted } from "@/lib/db/soft-delete";
 import { parsePagination, paginatedResponse } from "@/lib/api/pagination";
 import { z } from "zod";
 import { currencyCodeSchema } from "@/lib/currency/zod";
+import { resolveDocumentCurrency } from "@/lib/currency/resolve-currency";
 
 const itemSchema = z.object({
   billId: z.string().min(1),
   contactId: z.string().min(1),
   amount: z.number().int().positive(),
-  currencyCode: currencyCodeSchema.default("USD"),
+  currencyCode: currencyCodeSchema.optional(),
 });
 
 const createSchema = z.object({
   name: z.string().min(1),
-  currencyCode: currencyCodeSchema.default("USD"),
+  currencyCode: currencyCodeSchema.optional(),
   items: z.array(itemSchema).min(1),
 });
 
@@ -67,22 +68,33 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const parsed = createSchema.parse(body);
+    const currencyCode = await resolveDocumentCurrency(ctx.organizationId, parsed.currencyCode);
+    const items = await Promise.all(
+      parsed.items.map(async (item) => ({
+        ...item,
+        currencyCode: await resolveDocumentCurrency(
+          ctx.organizationId,
+          item.currencyCode,
+          item.contactId
+        ),
+      }))
+    );
 
-    const totalAmount = parsed.items.reduce((sum, item) => sum + item.amount, 0);
+    const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
 
     const [created] = await db
       .insert(paymentBatch)
       .values({
         organizationId: ctx.organizationId,
         name: parsed.name,
-        currencyCode: parsed.currencyCode,
+        currencyCode,
         totalAmount,
-        paymentCount: parsed.items.length,
+        paymentCount: items.length,
       })
       .returning();
 
     await db.insert(paymentBatchItem).values(
-      parsed.items.map((item) => ({
+      items.map((item) => ({
         batchId: created.id,
         billId: item.billId,
         contactId: item.contactId,

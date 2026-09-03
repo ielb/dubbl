@@ -13,6 +13,7 @@ import { preloadTaxRates, calcTax } from "@/lib/api/tax-calculator";
 import { logAudit } from "@/lib/api/audit";
 import { z } from "zod";
 import { currencyCodeSchema } from "@/lib/currency/zod";
+import { resolveDocumentCurrency } from "@/lib/currency/resolve-currency";
 import { resolvePrice } from "@/lib/api/pricing";
 
 const lineSchema = z.object({
@@ -38,7 +39,7 @@ const createSchema = z.object({
   expiryDate: z.string().min(1),
   reference: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
-  currencyCode: currencyCodeSchema.default("USD"),
+  currencyCode: currencyCodeSchema.optional(),
   // Default price list applied to inventory-item lines that don't carry their own.
   priceListId: z.string().nullable().optional(),
   lines: z.array(lineSchema).min(1),
@@ -88,6 +89,11 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const parsed = createSchema.parse(body);
+    const currencyCode = await resolveDocumentCurrency(
+      ctx.organizationId,
+      parsed.currencyCode,
+      parsed.contactId
+    );
 
     const quoteNumber = await getNextNumber(ctx.organizationId, "quote", "quote_number", "QTE");
 
@@ -122,7 +128,7 @@ export async function POST(request: Request) {
     const unitPricesCents = await Promise.all(
       parsed.lines.map(async (l) => {
         // Explicit price always wins (caller override).
-        if (l.unitPrice !== undefined) return decimalToMinorUnits(l.unitPrice, parsed.currencyCode);
+        if (l.unitPrice !== undefined) return decimalToMinorUnits(l.unitPrice, currencyCode);
         if (l.inventoryItemId) {
           const listId = l.priceListId || parsed.priceListId || null;
           if (listId) {
@@ -181,7 +187,7 @@ export async function POST(request: Request) {
         subtotal,
         taxTotal,
         total,
-        currencyCode: parsed.currencyCode,
+        currencyCode,
         createdBy: ctx.userId,
       })
       .returning();

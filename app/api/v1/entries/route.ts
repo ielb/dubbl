@@ -10,13 +10,14 @@ import { assertNotLocked } from "@/lib/api/period-lock";
 import { checkMonthlyLimit } from "@/lib/api/check-limit";
 import { z } from "zod";
 import { currencyCodeSchema } from "@/lib/currency/zod";
+import { resolveDocumentCurrency } from "@/lib/currency/resolve-currency";
 
 const lineSchema = z.object({
   accountId: z.string().min(1),
   description: z.string().nullable().optional(),
   debitAmount: z.number().int().min(0).default(0),
   creditAmount: z.number().int().min(0).default(0),
-  currencyCode: currencyCodeSchema.default("USD"),
+  currencyCode: currencyCodeSchema.optional(),
   exchangeRate: z.number().int().default(1000000),
 });
 
@@ -70,6 +71,12 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const parsed = createSchema.parse(body);
+    const lines = await Promise.all(
+      parsed.lines.map(async (l) => ({
+        ...l,
+        currencyCode: await resolveDocumentCurrency(ctx.organizationId, l.currencyCode),
+      }))
+    );
 
     await assertNotLocked(ctx.organizationId, parsed.date);
     await checkMonthlyLimit(ctx.organizationId, journalEntry, journalEntry.organizationId, journalEntry.createdAt, "entriesPerMonth");
@@ -79,10 +86,10 @@ export async function POST(request: Request) {
     // non-1.0 exchange rate) must balance in BASE currency — comparing raw
     // amounts across currencies is meaningless and would let an unbalanced
     // entry post.
-    const totalDebit = parsed.lines.reduce((sum, l) => sum + l.debitAmount, 0);
-    const totalCredit = parsed.lines.reduce((sum, l) => sum + l.creditAmount, 0);
-    const firstCurrency = parsed.lines[0]?.currencyCode;
-    const isMultiCurrency = parsed.lines.some(
+    const totalDebit = lines.reduce((sum, l) => sum + l.debitAmount, 0);
+    const totalCredit = lines.reduce((sum, l) => sum + l.creditAmount, 0);
+    const firstCurrency = lines[0]?.currencyCode;
+    const isMultiCurrency = lines.some(
       (l) => l.currencyCode !== firstCurrency || l.exchangeRate !== 1_000_000
     );
     if (!isMultiCurrency) {
@@ -95,10 +102,10 @@ export async function POST(request: Request) {
     } else {
       const toBase = (amount: number, rate: number) =>
         Math.round((amount * rate) / 1_000_000);
-      const baseDebit = parsed.lines.reduce((s, l) => s + toBase(l.debitAmount, l.exchangeRate), 0);
-      const baseCredit = parsed.lines.reduce((s, l) => s + toBase(l.creditAmount, l.exchangeRate), 0);
+      const baseDebit = lines.reduce((s, l) => s + toBase(l.debitAmount, l.exchangeRate), 0);
+      const baseCredit = lines.reduce((s, l) => s + toBase(l.creditAmount, l.exchangeRate), 0);
       // Allow up to one cent of per-line rounding slack.
-      if (Math.abs(baseDebit - baseCredit) > parsed.lines.length) {
+      if (Math.abs(baseDebit - baseCredit) > lines.length) {
         return NextResponse.json(
           { error: "In your base currency, total debits must equal total credits." },
           { status: 400 }
@@ -144,7 +151,7 @@ export async function POST(request: Request) {
 
     // Insert lines
     await db.insert(journalLine).values(
-      parsed.lines.map((l) => ({
+      lines.map((l) => ({
         journalEntryId: entry.id,
         accountId: l.accountId,
         description: l.description || null,

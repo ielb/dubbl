@@ -8,6 +8,7 @@ import { logAudit } from "@/lib/api/audit";
 import { syncSystemAccounts } from "@/lib/db/system-accounts";
 import { z } from "zod";
 import { currencyCodeSchema } from "@/lib/currency/zod";
+import { resolveDocumentCurrency } from "@/lib/currency/resolve-currency";
 
 const createSchema = z.object({
   code: z.string().min(1),
@@ -15,7 +16,7 @@ const createSchema = z.object({
   type: z.enum(["asset", "liability", "equity", "revenue", "expense"]),
   subType: z.string().nullable().optional(),
   parentId: z.string().nullable().optional(),
-  currencyCode: currencyCodeSchema.default("USD"),
+  currencyCode: currencyCodeSchema.optional(),
   description: z.string().nullable().optional(),
   // Account-driven tax defaulting: lines coded to this account
   // pick up this tax rate by default.
@@ -81,6 +82,7 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const parsed = createSchema.parse(body);
+    const currencyCode = await resolveDocumentCurrency(ctx.organizationId, parsed.currencyCode);
 
     // Check for duplicate code
     const existing = await db.query.chartAccount.findFirst({
@@ -109,6 +111,7 @@ export async function POST(request: Request) {
       .values({
         organizationId: ctx.organizationId,
         ...parsed,
+        currencyCode,
       })
       .returning();
 

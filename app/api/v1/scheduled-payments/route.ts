@@ -10,12 +10,13 @@ import { notDeleted } from "@/lib/db/soft-delete";
 import { parsePagination, paginatedResponse } from "@/lib/api/pagination";
 import { z } from "zod";
 import { currencyCodeSchema } from "@/lib/currency/zod";
+import { resolveDocumentCurrency } from "@/lib/currency/resolve-currency";
 
 const createSchema = z.object({
   billId: z.string().min(1),
   contactId: z.string().min(1),
   amount: z.number().int().positive(),
-  currencyCode: currencyCodeSchema.default("USD"),
+  currencyCode: currencyCodeSchema.optional(),
   scheduledDate: z.string().min(1),
   notes: z.string().nullable().optional(),
 });
@@ -88,6 +89,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Bill not found" }, { status: 404 });
     }
 
+    // A scheduled payment settles a specific bill, so it should default to
+    // that bill's own currency (not just the org's) ahead of the usual
+    // contact/org fallback — an explicit override still wins.
+    const currencyCode = await resolveDocumentCurrency(
+      ctx.organizationId,
+      parsed.currencyCode ?? existingBill.currencyCode,
+      parsed.contactId
+    );
+
     const [created] = await db
       .insert(scheduledPayment)
       .values({
@@ -95,7 +105,7 @@ export async function POST(request: Request) {
         billId: parsed.billId,
         contactId: parsed.contactId,
         amount: parsed.amount,
-        currencyCode: parsed.currencyCode,
+        currencyCode,
         scheduledDate: parsed.scheduledDate,
         notes: parsed.notes || null,
       })

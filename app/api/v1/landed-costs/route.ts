@@ -9,6 +9,7 @@ import { notDeleted } from "@/lib/db/soft-delete";
 import { parsePagination, paginatedResponse } from "@/lib/api/pagination";
 import { z } from "zod";
 import { currencyCodeSchema } from "@/lib/currency/zod";
+import { resolveDocumentCurrency } from "@/lib/currency/resolve-currency";
 
 const componentSchema = z.object({
   description: z.string().min(1),
@@ -21,7 +22,7 @@ const createSchema = z.object({
   billId: z.string().nullable().optional(),
   purchaseOrderId: z.string().nullable().optional(),
   allocationMethod: z.enum(["by_value", "by_quantity", "by_weight", "manual"]).default("by_value"),
-  currencyCode: currencyCodeSchema.default("USD"),
+  currencyCode: currencyCodeSchema.optional(),
   components: z.array(componentSchema).min(1),
 });
 
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
     requireRole(ctx, "manage:purchases");
     const body = await request.json();
     const parsed = createSchema.parse(body);
+    const currencyCode = await resolveDocumentCurrency(ctx.organizationId, parsed.currencyCode);
 
     const totalCostAmount = parsed.components.reduce((sum, c) => sum + Math.round(c.amount * 100), 0);
 
@@ -75,7 +77,7 @@ export async function POST(request: Request) {
         purchaseOrderId: parsed.purchaseOrderId || null,
         allocationMethod: parsed.allocationMethod,
         totalCostAmount,
-        currencyCode: parsed.currencyCode,
+        currencyCode,
         createdBy: ctx.userId,
       })
       .returning();
