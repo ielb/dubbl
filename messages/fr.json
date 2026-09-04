@@ -227,9 +227,113 @@
       "stockValue": "Valorisation du stock"
     }
   },
-  "Reports": {},
+  "Reports": {
+    "documentTitle": "Rapports · Vue d'ensemble",
+    "categories": {
+      "bigPicture": {
+        "title": "Vue d'ensemble",
+        "description": "Les synthèses essentielles pour évaluer la santé de l'entreprise."
+      },
+      "profitSpending": {
+        "title": "Résultat et dépenses",
+        "description": "Analysez les produits, les charges et leur évolution dans le temps."
+      },
+      "gettingPaid": {
+        "title": "Encaissements et règlements",
+        "description": "Suivez les créances clients et les dettes fournisseurs."
+      },
+      "taxTime": {
+        "title": "Fiscalité",
+        "description": "Rapports utiles pour les déclarations de taxes et les formulaires fournisseurs."
+      },
+      "planning": {
+        "title": "Prévisions",
+        "description": "Anticipez les échéances et surveillez les indicateurs clés."
+      },
+      "accountant": {
+        "title": "Pour votre comptable",
+        "description": "Les états détaillés et ligne par ligne attendus par les comptables."
+      },
+      "operations": {
+        "title": "Enregistrer, planifier et rapprocher",
+        "description": "Conservez vos rapports, envoyez-les automatiquement et contrôlez vos rapprochements bancaires."
+      }
+    },
+    "items": {
+      "health": { "title": "Diagnostic rapide", "description": "Les chiffres clés de la période comparés à la période précédente pour repérer immédiatement les évolutions." },
+      "profitLoss": { "title": "Produits et charges", "description": "Vos produits diminués de vos charges sur une période, aussi appelé compte de résultat." },
+      "balanceSheet": { "title": "Actif et passif", "description": "Tout ce que l'entreprise possède et doit à une date donnée, aussi appelé bilan." },
+      "cashFlow": { "title": "Flux de trésorerie", "description": "Les entrées et sorties de trésorerie liées à l'exploitation, aux investissements et au financement." },
+      "pack": { "title": "Télécharger un dossier de rapports", "description": "Regroupez les principaux rapports d'une période dans un seul tableur pour votre comptable, votre banque ou vos déclarations." },
+      "tracking": { "title": "Résultat par équipe ou projet", "description": "Comparez les produits et les charges par département ou par projet." },
+      "pnlComparison": { "title": "Comparer deux périodes", "description": "Placez côte à côte les produits et les charges de deux périodes pour repérer les écarts." },
+      "budgetActual": { "title": "Budget et réalisé", "description": "Identifiez les postes supérieurs ou inférieurs aux prévisions." },
+      "expenseAnalytics": { "title": "Analyse des dépenses", "description": "Vos dépenses regroupées par catégorie, avec tendances et moyennes." },
+      "profitability": { "title": "Rentabilité par client", "description": "Ce que chaque client rapporte, diminué du coût nécessaire pour le servir." },
+      "vendorSpend": { "title": "Principaux fournisseurs", "description": "Classement de vos fournisseurs selon les dépenses totales de la période." },
+      "agedReceivables": { "title": "Balance âgée clients", "description": "Factures clients impayées regroupées selon leur retard." },
+      "agedPayables": { "title": "Balance âgée fournisseurs", "description": "Factures fournisseurs impayées regroupées selon leur échéance." },
+      "paymentPerformance": { "title": "Délais de paiement", "description": "Délai moyen de règlement de vos clients et délai moyen de paiement de vos fournisseurs." },
+      "duplicates": { "title": "Doublons possibles", "description": "Repérez les factures clients ou fournisseurs qui pourraient avoir été saisies deux fois." },
+      "vatReturn": { "title": "Déclaration de taxe / TVA / GST", "description": "Les montants de votre déclaration, case par case, avec accès au détail de chaque chiffre." },
+      "taxSummary": { "title": "Taxe collectée et déductible", "description": "Taxe facturée aux clients et taxe payée aux fournisseurs, ventilées par taux." },
+      "vendor1099": { "title": "Totaux fournisseurs 1099 (États-Unis)", "description": "Total annuel des paiements hors carte à chaque prestataire 1099 et identification des seuils de déclaration." },
+      "forecast": { "title": "Prévisions de trésorerie", "description": "Projection des encaissements et décaissements attendus à partir des factures et opérations récurrentes." },
+      "calendar": { "title": "Échéances à venir", "description": "Dates d'échéance des factures, règlements fournisseurs et opérations récurrentes dans un calendrier." },
+      "ratios": { "title": "Indicateurs de santé financière", "description": "Ratios clés sur la capacité à régler les dettes et la solidité des marges." },
+      "trialBalance": { "title": "Balance générale", "description": "Solde de chaque compte à une date choisie, avec comparaison facultative à des dates antérieures." },
+      "ledger": { "title": "Grand livre", "description": "Toutes les écritures comptables regroupées par compte avec leur solde progressif." },
+      "comparativeBalance": { "title": "Bilan comparatif", "description": "Comparaison de l'actif et du passif à deux dates pour identifier les mouvements." },
+      "consolidation": { "title": "Vue consolidée des sociétés", "description": "Regroupez les chiffres de plusieurs sociétés dans un seul jeu d'états financiers." },
+      "reconciliation": { "title": "État des rapprochements bancaires", "description": "Vue de tous les comptes, des opérations rapprochées et des éléments restant à traiter." },
+      "bankCashFlow": { "title": "Flux bancaires", "description": "Entrées et sorties sur vos comptes bancaires et de caisse pendant une période." },
+      "saved": { "title": "Rapports enregistrés", "description": "Rapports conservés pour être relancés ultérieurement avec les mêmes paramètres." },
+      "schedules": { "title": "Envois planifiés", "description": "Envoyez automatiquement les rapports par e-mail à vous-même ou à votre comptable." }
+    }
+  },
   "CRM": {},
-  "Projects": {},
+  "Projects": {
+    "documentTitle": "Projets · Tous les projets",
+    "columns": {
+      "project": "Projet",
+      "status": "Statut",
+      "priority": "Priorité",
+      "time": "Temps",
+      "budget": "Budget",
+      "billed": "Facturé",
+      "team": "Équipe"
+    },
+    "status": {
+      "all": "Tous",
+      "active": "Actifs",
+      "completed": "Terminés",
+      "on_hold": "En attente",
+      "cancelled": "Annulés",
+      "archived": "Archivés"
+    },
+    "priority": {
+      "low": "Faible",
+      "medium": "Moyenne",
+      "high": "Élevée",
+      "urgent": "Urgente"
+    },
+    "emptyTitle": "Aucun projet",
+    "emptyDescription": "Créez votre premier projet pour suivre le temps, les tâches et la facturation.",
+    "newProject": "Nouveau projet",
+    "overview": "Vue d'ensemble",
+    "overviewDescription": "Synthèse de vos projets et de l'affectation des ressources.",
+    "active": "Actifs",
+    "totalBudget": "Budget total",
+    "totalBilled": "Total facturé",
+    "ofBudget": "{percent} % du budget",
+    "hoursLogged": "Heures enregistrées",
+    "teamMembers": "Membres de l'équipe",
+    "projects": "Projets",
+    "sectionDescription": "Consultez et gérez tous vos projets.",
+    "noProjects": "Aucun projet trouvé.",
+    "hourSuffix": "h",
+    "minuteSuffix": "min"
+  },
   "Documents": {},
   "Tax": {
     "tabs": {
