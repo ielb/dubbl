@@ -39,6 +39,113 @@
     "french": "Français",
     "signOut": "Se déconnecter"
   },
+  "Payroll": {
+    "tabs": {
+      "overview": "Aperçu",
+      "employees": "Employés",
+      "runs": "Cycles",
+      "taxLiabilities": "Dettes sociales et fiscales",
+      "taxLiabilitiesHelp": "Cotisations et impôts sur salaires dus, ainsi que les règlements enregistrés",
+      "timeLeave": "Temps et congés",
+      "contractors": "Prestataires",
+      "compensation": "Rémunération",
+      "analytics": "Analyses",
+      "filingDocuments": "Documents déclaratifs",
+      "settings": "Paramètres"
+    },
+    "settings": {
+      "payrollCountry": "Pays de la paie",
+      "unitedStates": "États-Unis",
+      "morocco": "Maroc",
+      "countryHelp": "Détermine les retenues sur salaire indépendamment du pays de votre entreprise."
+    },
+    "taxForms": {
+      "documentTitle": "Paie · Documents déclaratifs",
+      "detailDocumentTitle": "Paie · Détail du document déclaratif",
+      "title": "Documents déclaratifs",
+      "descriptionUS": "Générez et gérez les formulaires fiscaux 1099-NEC et W-2.",
+      "descriptionMA": "Préparez les déclarations CNSS mensuelles et les états annuels d'IR des employés.",
+      "year": "Année",
+      "month": "Mois",
+      "months": {
+        "1": "Janvier",
+        "2": "Février",
+        "3": "Mars",
+        "4": "Avril",
+        "5": "Mai",
+        "6": "Juin",
+        "7": "Juillet",
+        "8": "Août",
+        "9": "Septembre",
+        "10": "Octobre",
+        "11": "Novembre",
+        "12": "Décembre"
+      },
+      "generate1099": "Générer les 1099-NEC",
+      "generateW2": "Générer les W-2",
+      "generateCnss": "Générer la déclaration CNSS",
+      "generateIr": "Générer les états annuels d'IR",
+      "generating": "Génération…",
+      "generatedToast": "{count} document(s) {formType} généré(s)",
+      "generateFailed": "Échec de la génération des documents déclaratifs",
+      "status": {
+        "draft": "Brouillon",
+        "generated": "Généré",
+        "sent": "Envoyé",
+        "filed": "Déposé",
+        "corrected": "Corrigé"
+      },
+      "formTypes": {
+        "1099_nec": "1099-NEC",
+        "1099_misc": "1099-MISC",
+        "w2": "W-2",
+        "ma_cnss_declaration": "Déclaration mensuelle CNSS",
+        "ma_ir_annual_summary": "État annuel d'IR"
+      },
+      "table": {
+        "taxYear": "Année fiscale",
+        "formType": "Type de document",
+        "status": "Statut",
+        "forms": "Documents",
+        "generated": "Généré le",
+        "recipient": "Bénéficiaire",
+        "taxId": "Identifiant fiscal",
+        "keyAmount": "Montant principal",
+        "actions": "Actions"
+      },
+      "empty": "Aucun document déclaratif généré.",
+      "loading": "Chargement…",
+      "notFound": "Document déclaratif introuvable",
+      "back": "Retour aux documents déclaratifs",
+      "downloadJson": "Ouvrir les données du formulaire",
+      "summary": {
+        "formType": "Type de document",
+        "taxYear": "Année fiscale",
+        "recipient": "Bénéficiaire",
+        "taxId": "Identifiant fiscal",
+        "period": "Période de déclaration",
+        "employeeCount": "Employés",
+        "grossWages": "Salaires bruts",
+        "taxableWages": "Salaires imposables",
+        "irWithheld": "IR retenu",
+        "employeeContributions": "Cotisations salariales",
+        "employerContributions": "Cotisations patronales",
+        "totalContributions": "Total des cotisations sociales"
+      },
+      "contributions": {
+        "pension": "Prestations sociales à long terme",
+        "shortTermSocialBenefits": "Prestations sociales à court terme (CT)",
+        "lossOfEmploymentIndemnity": "Indemnité pour perte d'emploi (IPE)",
+        "familyAllowances": "Allocations familiales",
+        "mandatoryHealthInsurance": "Assurance maladie obligatoire (AMO)",
+        "vocationalTrainingTax": "Taxe de formation professionnelle (TFP)",
+        "total": "Total"
+      },
+      "employeeBreakdown": "Détail par employé",
+      "formData": "Données du formulaire",
+      "disclaimer": "Les documents générés constituent un point de départ pour préparer vos déclarations et ne garantissent pas la conformité réglementaire. Vérifiez tous les montants avant tout dépôt auprès de la CNSS ou de la DGI."
+    }
+  },
   "Dashboard": {
     "documentTitle": "Tableau de bord · Aperçu",
     "greetings": {

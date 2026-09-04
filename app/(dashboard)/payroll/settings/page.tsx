@@ -31,6 +31,7 @@ import { Switch } from "@/components/ui/switch";
 import { CurrencySelect } from "@/components/ui/currency-select";
 import { cn } from "@/lib/utils";
 import { useConfirm } from "@/lib/hooks/use-confirm";
+import { useTranslations } from "next-intl";
 
 interface PayrollSettingsData {
   defaultTaxRate: number;
@@ -108,6 +109,7 @@ const anim = (delay: number) => ({
 });
 
 export default function PayrollSettingsPage() {
+  const t = useTranslations("Payroll");
   const { confirm, dialog: confirmDialog } = useConfirm();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -401,7 +403,7 @@ export default function PayrollSettingsPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Payroll Country</Label>
+                <Label className="text-xs">{t("settings.payrollCountry")}</Label>
                 <Select
                   value={settings.country}
                   onValueChange={(country: "US" | "MA") =>
@@ -412,12 +414,12 @@ export default function PayrollSettingsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="US">United States</SelectItem>
-                    <SelectItem value="MA">Morocco</SelectItem>
+                    <SelectItem value="US">{t("settings.unitedStates")}</SelectItem>
+                    <SelectItem value="MA">{t("settings.morocco")}</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Controls payroll withholding independently of your business country.
+                  {t("settings.countryHelp")}
                 </p>
               </div>
               <div className="space-y-1.5">

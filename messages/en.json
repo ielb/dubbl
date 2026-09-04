@@ -39,6 +39,113 @@
     "french": "French",
     "signOut": "Sign out"
   },
+  "Payroll": {
+    "tabs": {
+      "overview": "Overview",
+      "employees": "Employees",
+      "runs": "Runs",
+      "taxLiabilities": "Tax Liabilities",
+      "taxLiabilitiesHelp": "Payroll taxes you owe and payments recorded with the agencies",
+      "timeLeave": "Time & Leave",
+      "contractors": "Contractors",
+      "compensation": "Compensation",
+      "analytics": "Analytics",
+      "filingDocuments": "Filing Documents",
+      "settings": "Settings"
+    },
+    "settings": {
+      "payrollCountry": "Payroll Country",
+      "unitedStates": "United States",
+      "morocco": "Morocco",
+      "countryHelp": "Controls payroll withholding independently of your business country."
+    },
+    "taxForms": {
+      "documentTitle": "Payroll · Filing Documents",
+      "detailDocumentTitle": "Payroll · Filing Document Details",
+      "title": "Filing Documents",
+      "descriptionUS": "Generate and manage 1099-NEC and W-2 tax forms.",
+      "descriptionMA": "Prepare monthly CNSS declarations and annual employee IR summaries.",
+      "year": "Year",
+      "month": "Month",
+      "months": {
+        "1": "January",
+        "2": "February",
+        "3": "March",
+        "4": "April",
+        "5": "May",
+        "6": "June",
+        "7": "July",
+        "8": "August",
+        "9": "September",
+        "10": "October",
+        "11": "November",
+        "12": "December"
+      },
+      "generate1099": "Generate 1099-NEC",
+      "generateW2": "Generate W-2",
+      "generateCnss": "Generate CNSS declaration",
+      "generateIr": "Generate annual IR summaries",
+      "generating": "Generating…",
+      "generatedToast": "Generated {count} {formType} document(s)",
+      "generateFailed": "Failed to generate filing documents",
+      "status": {
+        "draft": "Draft",
+        "generated": "Generated",
+        "sent": "Sent",
+        "filed": "Filed",
+        "corrected": "Corrected"
+      },
+      "formTypes": {
+        "1099_nec": "1099-NEC",
+        "1099_misc": "1099-MISC",
+        "w2": "W-2",
+        "ma_cnss_declaration": "CNSS monthly declaration",
+        "ma_ir_annual_summary": "Annual IR summary"
+      },
+      "table": {
+        "taxYear": "Tax year",
+        "formType": "Document type",
+        "status": "Status",
+        "forms": "Documents",
+        "generated": "Generated",
+        "recipient": "Recipient",
+        "taxId": "Tax ID",
+        "keyAmount": "Key amount",
+        "actions": "Actions"
+      },
+      "empty": "No filing documents generated yet.",
+      "loading": "Loading…",
+      "notFound": "Filing document not found",
+      "back": "Back to filing documents",
+      "downloadJson": "Open form data",
+      "summary": {
+        "formType": "Document type",
+        "taxYear": "Tax year",
+        "recipient": "Recipient",
+        "taxId": "Tax ID",
+        "period": "Declaration period",
+        "employeeCount": "Employees",
+        "grossWages": "Gross wages",
+        "taxableWages": "Taxable wages",
+        "irWithheld": "IR withheld",
+        "employeeContributions": "Employee contributions",
+        "employerContributions": "Employer contributions",
+        "totalContributions": "Total social contributions"
+      },
+      "contributions": {
+        "pension": "CNSS pension",
+        "shortTermSocialBenefits": "Short-term social benefits (CT)",
+        "lossOfEmploymentIndemnity": "Loss-of-employment indemnity (IPE)",
+        "familyAllowances": "Family allowances",
+        "mandatoryHealthInsurance": "Mandatory health insurance (AMO)",
+        "vocationalTrainingTax": "Vocational training tax (TFP)",
+        "total": "Total"
+      },
+      "employeeBreakdown": "Employee breakdown",
+      "formData": "Form data",
+      "disclaimer": "Generated documents are a starting point for filing preparation and do not guarantee regulatory compliance. Verify all figures before submitting them to CNSS or the DGI."
+    }
+  },
   "Dashboard": {
     "documentTitle": "Dashboard · Overview",
     "greetings": {

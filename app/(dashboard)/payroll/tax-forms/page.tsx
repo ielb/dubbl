@@ -1,9 +1,19 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -12,22 +22,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Download } from "lucide-react";
-import { toast } from "sonner";
 import { useDocumentTitle } from "@/lib/hooks/use-document-title";
+import { isMoroccanTaxFormType } from "@/lib/payroll/morocco-tax-forms";
+
+type TaxFormType =
+  | "1099_nec"
+  | "1099_misc"
+  | "w2"
+  | "ma_cnss_declaration"
+  | "ma_ir_annual_summary";
 
 interface TaxFormItem {
   id: string;
   recipientName: string;
   recipientTaxId: string | null;
-  formType: string;
+  formType: TaxFormType;
   taxYear: number;
   formData: Record<string, unknown>;
   status: string;
@@ -36,48 +45,29 @@ interface TaxFormItem {
 interface TaxGeneration {
   id: string;
   taxYear: number;
-  formType: string;
+  formType: TaxFormType;
   status: string;
   generatedAt: string | null;
   createdAt: string;
   forms: TaxFormItem[];
 }
 
-const formatMoney = (cents: number) =>
-  (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
-
-const statusBadge = (status: string) => {
-  switch (status) {
-    case "draft":
-      return <Badge variant="secondary">draft</Badge>;
-    case "generated":
-      return <Badge variant="default">generated</Badge>;
-    case "sent":
-      return <Badge variant="outline">sent</Badge>;
-    case "filed":
-      return (
-        <Badge
-          variant="default"
-          className="bg-emerald-600 hover:bg-emerald-700"
-        >
-          filed
-        </Badge>
-      );
-    default:
-      return <Badge variant="secondary">{status}</Badge>;
-  }
-};
-
-const years = Array.from({ length: 7 }, (_, i) => 2020 + i);
+const currentYear = new Date().getFullYear();
+const years = Array.from({ length: 7 }, (_, index) => currentYear - index);
+const months = Array.from({ length: 12 }, (_, index) => index + 1);
 
 export default function TaxFormsPage() {
+  const t = useTranslations("Payroll");
+  const locale = useLocale();
   const router = useRouter();
   const [generations, setGenerations] = useState<TaxGeneration[]>([]);
+  const [payrollCountry, setPayrollCountry] = useState<"US" | "MA">("US");
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [taxYear, setTaxYear] = useState("2025");
+  const [taxYear, setTaxYear] = useState(String(currentYear));
+  const [taxMonth, setTaxMonth] = useState(String(new Date().getMonth() + 1));
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  useDocumentTitle("Payroll · Tax Forms");
+  useDocumentTitle(t("taxForms.documentTitle"));
 
   const orgId =
     typeof window !== "undefined"
@@ -86,12 +76,18 @@ export default function TaxFormsPage() {
 
   const fetchGenerations = useCallback(() => {
     if (!orgId) return;
-    fetch("/api/v1/payroll/tax-forms", {
-      headers: { "x-organization-id": orgId },
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.data) setGenerations(data.data);
+    const headers = { "x-organization-id": orgId };
+    Promise.all([
+      fetch("/api/v1/payroll/tax-forms", { headers }).then((response) =>
+        response.json()
+      ),
+      fetch("/api/v1/payroll/settings", { headers }).then((response) =>
+        response.json()
+      ),
+    ])
+      .then(([generationData, settingsData]) => {
+        if (generationData.data) setGenerations(generationData.data);
+        if (settingsData.settings?.country === "MA") setPayrollCountry("MA");
       })
       .finally(() => setLoading(false));
   }, [orgId]);
@@ -100,33 +96,70 @@ export default function TaxFormsPage() {
     fetchGenerations();
   }, [fetchGenerations]);
 
-  async function handleGenerate(formType: "1099_nec" | "w2") {
+  function formTypeLabel(formType: TaxFormType) {
+    return t(`taxForms.formTypes.${formType}`);
+  }
+
+  function statusBadge(status: string) {
+    const label =
+      status === "draft" ||
+      status === "generated" ||
+      status === "sent" ||
+      status === "filed" ||
+      status === "corrected"
+        ? t(`taxForms.status.${status}`)
+        : status;
+
+    if (status === "draft") return <Badge variant="secondary">{label}</Badge>;
+    if (status === "sent") return <Badge variant="outline">{label}</Badge>;
+    if (status === "filed") {
+      return <Badge className="bg-emerald-600 hover:bg-emerald-700">{label}</Badge>;
+    }
+    return <Badge>{label}</Badge>;
+  }
+
+  function formatMoney(cents: number, formType: TaxFormType) {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency: isMoroccanTaxFormType(formType) ? "MAD" : "USD",
+    }).format(cents / 100);
+  }
+
+  async function handleGenerate(formType: TaxFormType) {
     setGenerating(true);
     try {
-      const res = await fetch("/api/v1/payroll/tax-forms/generate", {
+      const response = await fetch("/api/v1/payroll/tax-forms/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-organization-id": orgId,
         },
         body: JSON.stringify({
-          taxYear: parseInt(taxYear),
+          taxYear: Number(taxYear),
           formType,
+          ...(formType === "ma_cnss_declaration"
+            ? { taxMonth: Number(taxMonth) }
+            : {}),
         }),
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to generate");
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || t("taxForms.generateFailed"));
       }
 
-      const data = await res.json();
+      const data = await response.json();
       toast.success(
-        `Generated ${data.formsGenerated} ${formType === "1099_nec" ? "1099-NEC" : "W-2"} form(s)`
+        t("taxForms.generatedToast", {
+          count: data.formsGenerated,
+          formType: formTypeLabel(formType),
+        })
       );
       fetchGenerations();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to generate");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : t("taxForms.generateFailed")
+      );
     } finally {
       setGenerating(false);
     }
@@ -137,21 +170,25 @@ export default function TaxFormsPage() {
     return `***-${taxId.slice(-4)}`;
   }
 
-  function getKeyAmount(form: TaxFormItem): string {
+  function getKeyAmount(form: TaxFormItem) {
     const data = form.formData as Record<string, number>;
-    if (form.formType === "1099_nec" && data.box1_nonemployee_compensation) {
-      return formatMoney(data.box1_nonemployee_compensation);
-    }
-    if (form.formType === "w2" && data.box1_wages) {
-      return formatMoney(data.box1_wages);
-    }
-    return "-";
+    const amount =
+      form.formType === "1099_nec"
+        ? data.box1_nonemployee_compensation
+        : form.formType === "w2"
+          ? data.box1_wages
+          : form.formType === "ma_cnss_declaration"
+            ? data.total_social_contributions
+            : form.formType === "ma_ir_annual_summary"
+              ? data.ir_withheld
+              : undefined;
+    return typeof amount === "number" ? formatMoney(amount, form.formType) : "-";
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <p className="text-sm text-muted-foreground">Loading...</p>
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <p className="text-sm text-muted-foreground">{t("taxForms.loading")}</p>
       </div>
     );
   }
@@ -160,53 +197,110 @@ export default function TaxFormsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight">Tax Forms</h1>
+          <h1 className="text-lg font-semibold tracking-tight">
+            {t("taxForms.title")}
+          </h1>
           <p className="text-sm text-muted-foreground">
-            Generate and manage 1099-NEC and W-2 tax forms
+            {t(
+              payrollCountry === "MA"
+                ? "taxForms.descriptionMA"
+                : "taxForms.descriptionUS"
+            )}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Select value={taxYear} onValueChange={setTaxYear}>
             <SelectTrigger className="w-28">
-              <SelectValue placeholder="Year" />
+              <SelectValue placeholder={t("taxForms.year")} />
             </SelectTrigger>
             <SelectContent>
-              {years.map((y) => (
-                <SelectItem key={y} value={String(y)}>
-                  {y}
+              {years.map((year) => (
+                <SelectItem key={year} value={String(year)}>
+                  {year}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={generating}
-            onClick={() => handleGenerate("1099_nec")}
-          >
-            {generating ? "Generating..." : "Generate 1099-NEC"}
-          </Button>
-          <Button
-            size="sm"
-            disabled={generating}
-            onClick={() => handleGenerate("w2")}
-            className="bg-emerald-600 hover:bg-emerald-700"
-          >
-            {generating ? "Generating..." : "Generate W-2"}
-          </Button>
+
+          {payrollCountry === "MA" ? (
+            <>
+              <Select value={taxMonth} onValueChange={setTaxMonth}>
+                <SelectTrigger className="w-36">
+                  <SelectValue placeholder={t("taxForms.month")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {months.map((month) => (
+                    <SelectItem key={month} value={String(month)}>
+                      {t(`taxForms.months.${month}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={generating}
+                onClick={() => handleGenerate("ma_cnss_declaration")}
+              >
+                {generating
+                  ? t("taxForms.generating")
+                  : t("taxForms.generateCnss")}
+              </Button>
+              <Button
+                size="sm"
+                disabled={generating}
+                onClick={() => handleGenerate("ma_ir_annual_summary")}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {generating
+                  ? t("taxForms.generating")
+                  : t("taxForms.generateIr")}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={generating}
+                onClick={() => handleGenerate("1099_nec")}
+              >
+                {generating
+                  ? t("taxForms.generating")
+                  : t("taxForms.generate1099")}
+              </Button>
+              <Button
+                size="sm"
+                disabled={generating}
+                onClick={() => handleGenerate("w2")}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {generating
+                  ? t("taxForms.generating")
+                  : t("taxForms.generateW2")}
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Generations table */}
+      {payrollCountry === "MA" && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-muted-foreground">
+          {t("taxForms.disclaimer")}
+        </div>
+      )}
+
       <div className="rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Tax Year</TableHead>
-              <TableHead>Form Type</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right"># Forms</TableHead>
-              <TableHead>Generated</TableHead>
+              <TableHead>{t("taxForms.table.taxYear")}</TableHead>
+              <TableHead>{t("taxForms.table.formType")}</TableHead>
+              <TableHead>{t("taxForms.table.status")}</TableHead>
+              <TableHead className="text-right">
+                {t("taxForms.table.forms")}
+              </TableHead>
+              <TableHead>{t("taxForms.table.generated")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -214,101 +308,99 @@ export default function TaxFormsPage() {
               <TableRow>
                 <TableCell
                   colSpan={5}
-                  className="text-center text-muted-foreground py-8"
+                  className="py-8 text-center text-muted-foreground"
                 >
-                  No tax form generations yet
+                  {t("taxForms.empty")}
                 </TableCell>
               </TableRow>
             ) : (
-              generations.map((gen) => (
-                <>
+              generations.map((generation) => (
+                <Fragment key={generation.id}>
                   <TableRow
-                    key={gen.id}
                     className="cursor-pointer"
                     onClick={() =>
-                      setExpandedId(expandedId === gen.id ? null : gen.id)
+                      setExpandedId(
+                        expandedId === generation.id ? null : generation.id
+                      )
                     }
                   >
                     <TableCell className="font-mono text-sm">
-                      {gen.taxYear}
+                      {generation.taxYear}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {gen.formType === "1099_nec"
-                        ? "1099-NEC"
-                        : gen.formType === "1099_misc"
-                          ? "1099-MISC"
-                          : "W-2"}
+                      {formTypeLabel(generation.formType)}
                     </TableCell>
-                    <TableCell>{statusBadge(gen.status)}</TableCell>
+                    <TableCell>{statusBadge(generation.status)}</TableCell>
                     <TableCell className="text-right font-mono text-sm tabular-nums">
-                      {gen.forms?.length || 0}
+                      {generation.forms?.length || 0}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {gen.generatedAt
-                        ? new Date(gen.generatedAt).toLocaleDateString()
+                      {generation.generatedAt
+                        ? new Date(generation.generatedAt).toLocaleDateString(
+                            locale
+                          )
                         : "-"}
                     </TableCell>
                   </TableRow>
 
-                  {/* Expanded forms section */}
-                  {expandedId === gen.id &&
-                    gen.forms &&
-                    gen.forms.length > 0 && (
-                      <TableRow key={`${gen.id}-forms`}>
+                  {expandedId === generation.id &&
+                    generation.forms &&
+                    generation.forms.length > 0 && (
+                      <TableRow>
                         <TableCell colSpan={5} className="p-0">
                           <div className="bg-muted/30 px-4 py-3">
                             <Table>
                               <TableHeader>
                                 <TableRow>
-                                  <TableHead>Recipient</TableHead>
-                                  <TableHead>Tax ID</TableHead>
-                                  <TableHead className="text-right">
-                                    Key Amount
+                                  <TableHead>
+                                    {t("taxForms.table.recipient")}
                                   </TableHead>
-                                  <TableHead>Status</TableHead>
+                                  <TableHead>{t("taxForms.table.taxId")}</TableHead>
                                   <TableHead className="text-right">
-                                    Actions
+                                    {t("taxForms.table.keyAmount")}
+                                  </TableHead>
+                                  <TableHead>{t("taxForms.table.status")}</TableHead>
+                                  <TableHead className="text-right">
+                                    {t("taxForms.table.actions")}
                                   </TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {gen.forms.map((form) => (
+                                {generation.forms.map((form) => (
                                   <TableRow
                                     key={form.id}
                                     className="cursor-pointer"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      router.push(
-                                        `/payroll/tax-forms/${form.id}`
-                                      );
-                                    }}
+                                    onClick={() =>
+                                      router.push(`/payroll/tax-forms/${form.id}`)
+                                    }
                                   >
                                     <TableCell className="font-medium">
                                       {form.recipientName}
                                     </TableCell>
-                                    <TableCell className="text-sm text-muted-foreground font-mono">
+                                    <TableCell className="font-mono text-sm text-muted-foreground">
                                       {maskTaxId(form.recipientTaxId)}
                                     </TableCell>
                                     <TableCell className="text-right font-mono text-sm tabular-nums">
                                       {getKeyAmount(form)}
                                     </TableCell>
-                                    <TableCell>
-                                      {statusBadge(form.status)}
-                                    </TableCell>
+                                    <TableCell>{statusBadge(form.status)}</TableCell>
                                     <TableCell className="text-right">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          window.open(
-                                            `/api/v1/payroll/tax-forms/${form.id}/pdf`,
-                                            "_blank"
-                                          );
-                                        }}
-                                      >
-                                        <Download className="size-3.5" />
-                                      </Button>
+                                      {!isMoroccanTaxFormType(form.formType) && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          aria-label={t("taxForms.downloadJson")}
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            window.open(
+                                              `/api/v1/payroll/tax-forms/${form.id}/pdf`,
+                                              "_blank"
+                                            );
+                                          }}
+                                        >
+                                          <Download className="size-3.5" />
+                                        </Button>
+                                      )}
                                     </TableCell>
                                   </TableRow>
                                 ))}
@@ -318,7 +410,7 @@ export default function TaxFormsPage() {
                         </TableCell>
                       </TableRow>
                     )}
-                </>
+                </Fragment>
               ))
             )}
           </TableBody>

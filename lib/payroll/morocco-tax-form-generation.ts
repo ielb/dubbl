@@ -30,10 +30,12 @@ const FILING_DISCLAIMER =
 
 function monthRange(taxYear: number, taxMonth: number) {
   const start = new Date(Date.UTC(taxYear, taxMonth - 1, 1));
-  const end = new Date(Date.UTC(taxYear, taxMonth, 1));
+  const endExclusive = new Date(Date.UTC(taxYear, taxMonth, 1));
+  const displayEnd = new Date(endExclusive.getTime() - 86_400_000);
   return {
     start: start.toISOString().slice(0, 10),
-    end: end.toISOString().slice(0, 10),
+    endExclusive: endExclusive.toISOString().slice(0, 10),
+    displayEnd: displayEnd.toISOString().slice(0, 10),
   };
 }
 
@@ -53,7 +55,11 @@ export async function generateMoroccanTaxForms({
   const period =
     formType === "ma_cnss_declaration"
       ? monthRange(taxYear, taxMonth as number)
-      : { start: `${taxYear}-01-01`, end: `${taxYear + 1}-01-01` };
+      : {
+          start: `${taxYear}-01-01`,
+          endExclusive: `${taxYear + 1}-01-01`,
+          displayEnd: `${taxYear}-12-31`,
+        };
 
   const employeeTotals = await exec
     .select({
@@ -68,7 +74,7 @@ export async function generateMoroccanTaxForms({
         eq(payrollRun.organizationId, organizationId),
         eq(payrollRun.status, "completed"),
         gte(payrollRun.payPeriodEnd, period.start),
-        lt(payrollRun.payPeriodEnd, period.end)
+        lt(payrollRun.payPeriodEnd, period.endExclusive)
       )
     )
     .groupBy(payrollItem.employeeId);
@@ -89,7 +95,7 @@ export async function generateMoroccanTaxForms({
         eq(payrollRun.organizationId, organizationId),
         eq(payrollRun.status, "completed"),
         gte(payrollRun.payPeriodEnd, period.start),
-        lt(payrollRun.payPeriodEnd, period.end)
+        lt(payrollRun.payPeriodEnd, period.endExclusive)
       )
     )
     .groupBy(payrollItem.employeeId, payrollItemTaxBreakdown.taxKind);
@@ -108,7 +114,7 @@ export async function generateMoroccanTaxForms({
         eq(payrollRun.organizationId, organizationId),
         eq(payrollRun.status, "completed"),
         gte(payrollRun.payPeriodEnd, period.start),
-        lt(payrollRun.payPeriodEnd, period.end)
+        lt(payrollRun.payPeriodEnd, period.endExclusive)
       )
     )
     .groupBy(payrollItem.employeeId, payrollItemEmployerTax.taxKind);
@@ -208,7 +214,7 @@ export async function generateMoroccanTaxForms({
       formData: {
         currency: "MAD",
         period_start: period.start,
-        period_end: period.end,
+        period_end: period.displayEnd,
         employee_count: employeeLines.length,
         total_gross_wages: employeeLines.reduce(
           (sum, line) => sum + line.wages.totalGross,
