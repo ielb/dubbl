@@ -3,6 +3,7 @@
 import { Suspense, useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,7 @@ interface ProvidersConfig {
 }
 
 function SignInContent() {
+  const t = useTranslations("Auth");
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
@@ -103,9 +105,9 @@ function SignInContent() {
         setNeedsTotp(true);
         setError("");
       } else if (needsTotp) {
-        setError("Invalid authentication code");
+        setError(t("invalidAuthCode"));
       } else {
-        setError("Invalid email or password");
+        setError(t("invalidCredentials"));
       }
       setLoading(false);
     } else {
@@ -150,10 +152,10 @@ function SignInContent() {
         transition={{ duration: 0.4 }}
       >
         <h1 className="text-[28px] font-extrabold tracking-tight text-foreground">
-          Welcome back
+          {t("signInHeading")}
         </h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Sign in to your account
+          {t("signInSubtext")}
         </p>
       </motion.div>
 
@@ -170,11 +172,11 @@ function SignInContent() {
             onClick={handleDevLogin}
             disabled={devLoading}
           >
-            {devLoading ? "Setting up..." : "Dev Login (test account)"}
+            {devLoading ? t("devLoginSettingUp") : t("devLogin")}
           </Button>
           <div className="my-5 flex items-center gap-3">
             <Separator className="flex-1" />
-            <span className="text-[11px] text-muted-foreground">or</span>
+            <span className="text-[11px] text-muted-foreground">{t("or")}</span>
             <Separator className="flex-1" />
           </div>
         </motion.div>
@@ -197,7 +199,7 @@ function SignInContent() {
                 onClick={() => signIn("google", { callbackUrl })}
               >
                 <GoogleIcon className="size-4" />
-                Google
+                {t("google")}
               </Button>
             )}
             {providers?.apple && (
@@ -208,7 +210,7 @@ function SignInContent() {
                 onClick={() => signIn("apple", { callbackUrl })}
               >
                 <AppleIcon className="size-4" />
-                Apple
+                {t("apple")}
               </Button>
             )}
           </motion.div>
@@ -216,7 +218,7 @@ function SignInContent() {
           <div className="my-5 flex items-center gap-3">
             <Separator className="flex-1" />
             <span className="text-[11px] text-muted-foreground">
-              or continue with email
+              {t("orContinueWithEmail")}
             </span>
             <Separator className="flex-1" />
           </div>
@@ -238,14 +240,14 @@ function SignInContent() {
 
         <div className="space-y-2">
           <Label htmlFor="email" className="text-xs font-medium">
-            Email
+            {t("email")}
           </Label>
           <Input
             id="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
+            placeholder={t("emailPlaceholder")}
             required
             autoFocus
             className="h-11 rounded-lg"
@@ -254,14 +256,14 @@ function SignInContent() {
 
         <div className="space-y-2">
           <Label htmlFor="password" className="text-xs font-medium">
-            Password
+            {t("password")}
           </Label>
           <Input
             id="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Your password"
+            placeholder={t("passwordPlaceholder")}
             required
             className="h-11 rounded-lg"
           />
@@ -270,7 +272,7 @@ function SignInContent() {
         {needsTotp && (
           <div className="space-y-2">
             <Label htmlFor="totp" className="text-xs font-medium">
-              Authentication code
+              {t("authCode")}
             </Label>
             <Input
               id="totp"
@@ -279,13 +281,13 @@ function SignInContent() {
               autoComplete="one-time-code"
               value={totp}
               onChange={(e) => setTotp(e.target.value)}
-              placeholder="6-digit code or backup code"
+              placeholder={t("authCodePlaceholder")}
               required
               autoFocus
               className="h-11 rounded-lg"
             />
             <p className="text-xs text-muted-foreground">
-              Enter the code from your authenticator app, or a backup code.
+              {t("authCodeHelp")}
             </p>
           </div>
         )}
@@ -296,10 +298,10 @@ function SignInContent() {
           disabled={loading}
         >
           {loading ? (
-            "Signing in..."
+            t("signingIn")
           ) : (
             <span className="inline-flex items-center gap-2">
-              Sign in
+              {t("signIn")}
               <ArrowRight className="size-4" />
             </span>
           )}
@@ -313,12 +315,12 @@ function SignInContent() {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.2 }}
         >
-          Don&apos;t have an account?{" "}
+          {t("noAccount")}{" "}
           <Link
             href="/sign-up"
             className="font-medium text-emerald-600 transition-colors hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
           >
-            Sign up
+            {t("signUp")}
           </Link>
         </motion.p>
       )}
@@ -329,7 +331,7 @@ function SignInContent() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.4, delay: 0.25 }}
       >
-        Open source &middot; Self-hosted option &middot; Apache 2.0
+        {t("tagline")}
       </motion.p>
     </div>
   );

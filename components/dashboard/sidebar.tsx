@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { ChevronRight, Plus } from "lucide-react";
 import {
   Sidebar,
@@ -54,54 +55,54 @@ interface IconHandle {
 }
 
 interface NavItem {
-  label: string;
+  id: string;
   href: string;
   icon: AnimatedIcon;
 }
 
 interface NavSection {
-  label: string;
+  id: "" | "financials" | "operations";
   items: NavItem[];
 }
 
 const sections: NavSection[] = [
   {
-    label: "",
+    id: "",
     items: [
-      { label: "Dashboard", href: "/dashboard", icon: GaugeIcon },
-      { label: "Contacts", href: "/contacts", icon: HandCoinsIcon },
+      { id: "dashboard", href: "/dashboard", icon: GaugeIcon },
+      { id: "contacts", href: "/contacts", icon: HandCoinsIcon },
     ],
   },
   {
-    label: "Financials",
+    id: "financials",
     items: [
-      { label: "Sales", href: "/sales", icon: FileTextIcon },
-      { label: "Purchases", href: "/purchases", icon: CartIcon },
-      { label: "Accounting", href: "/accounting", icon: ArrowLeftRightAnimatedIcon },
-      { label: "Tax", href: "/tax", icon: PercentAnimatedIcon },
+      { id: "sales", href: "/sales", icon: FileTextIcon },
+      { id: "purchases", href: "/purchases", icon: CartIcon },
+      { id: "accounting", href: "/accounting", icon: ArrowLeftRightAnimatedIcon },
+      { id: "tax", href: "/tax", icon: PercentAnimatedIcon },
     ],
   },
   {
-    label: "Operations",
+    id: "operations",
     items: [
-      { label: "Teams", href: "/teams", icon: UsersAnimatedIcon },
-      { label: "Inventory", href: "/inventory", icon: ReceiptAnimatedIcon },
-      { label: "Payroll", href: "/payroll", icon: LandmarkAnimatedIcon },
+      { id: "teams", href: "/teams", icon: UsersAnimatedIcon },
+      { id: "inventory", href: "/inventory", icon: ReceiptAnimatedIcon },
+      { id: "payroll", href: "/payroll", icon: LandmarkAnimatedIcon },
     ],
   },
   {
-    label: "",
+    id: "",
     items: [
-      { label: "CRM", href: "/crm", icon: TargetIcon },
-      { label: "Documents", href: "/documents", icon: FolderOpenIcon },
-      { label: "Reports", href: "/reports", icon: ChartLineIcon },
+      { id: "crm", href: "/crm", icon: TargetIcon },
+      { id: "documents", href: "/documents", icon: FolderOpenIcon },
+      { id: "reports", href: "/reports", icon: ChartLineIcon },
     ],
   },
 ];
 
 const footerItems: NavItem[] = [
-  { label: "Settings", href: "/settings", icon: SettingsIcon },
-  { label: "Help", href: "/docs", icon: CircleHelpIcon },
+  { id: "settings", href: "/settings", icon: SettingsIcon },
+  { id: "help", href: "/docs", icon: CircleHelpIcon },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -109,7 +110,7 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-function NavItemLink({ item, active, badge }: { item: NavItem; active: boolean; badge?: number }) {
+function NavItemLink({ item, label, active, badge }: { item: NavItem; label: string; active: boolean; badge?: number }) {
   const [hovered, setHovered] = useState(false);
   const iconRef = useRef<IconHandle>(null);
   const IconComp = item.icon;
@@ -137,7 +138,7 @@ function NavItemLink({ item, active, badge }: { item: NavItem; active: boolean; 
         )}
       >
         <IconComp ref={iconRef} size={16} className="shrink-0" />
-        <span className="flex-1">{item.label}</span>
+        <span className="flex-1">{label}</span>
         {badge !== undefined && badge > 0 && (
           <span className="size-4 rounded-full bg-red-100 text-red-600 text-[9px] font-medium flex items-center justify-center shrink-0 dark:bg-red-950 dark:text-red-400">
             {badge}
@@ -157,6 +158,7 @@ interface ProjectListItem {
 }
 
 function ProjectsCollapsible({ pathname }: { pathname: string }) {
+  const t = useTranslations("Sidebar");
   const [open, setOpen] = useState(() => pathname.startsWith("/projects"));
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [hovered, setHovered] = useState(false);
@@ -210,7 +212,7 @@ function ProjectsCollapsible({ pathname }: { pathname: string }) {
           )}
         >
           <LayersIcon ref={iconRef} size={16} className="shrink-0" />
-          <span className="flex-1 text-left">Projects</span>
+          <span className="flex-1 text-left">{t("projects")}</span>
           <ChevronRight className={cn(
             "size-3.5 shrink-0 transition-transform duration-200",
             open && "rotate-90"
@@ -255,7 +257,7 @@ function ProjectsCollapsible({ pathname }: { pathname: string }) {
               onClick={() => openDrawer("project")}
             >
               <Plus className="size-3.5" />
-              <span>New project</span>
+              <span>{t("newProject")}</span>
             </SidebarMenuSubButton>
           </SidebarMenuSubItem>
         </SidebarMenuSub>
@@ -264,7 +266,13 @@ function ProjectsCollapsible({ pathname }: { pathname: string }) {
   );
 }
 
+const SECTION_LABEL_KEY: Record<string, "sectionFinancials" | "sectionOperations"> = {
+  financials: "sectionFinancials",
+  operations: "sectionOperations",
+};
+
 export function AppSidebar() {
+  const t = useTranslations("Sidebar");
   const pathname = usePathname();
   const [overdueCounts, setOverdueCounts] = useState<{ sales: number; purchases: number }>({ sales: 0, purchases: 0 });
 
@@ -298,21 +306,22 @@ export function AppSidebar() {
 
       <SidebarContent className="gap-0 px-2">
         {sections.map((section, i) => (
-          <SidebarGroup key={section.label || `section-${i}`} className="px-0 py-1">
-            {section.label && (
+          <SidebarGroup key={section.id || `section-${i}`} className="px-0 py-1">
+            {section.id && (
               <SidebarGroupLabel className="h-7 px-2.5 text-[10.5px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
-                {section.label}
+                {t(SECTION_LABEL_KEY[section.id])}
               </SidebarGroupLabel>
             )}
             <SidebarGroupContent>
               <SidebarMenu className="gap-0.5">
-                {section.label === "Operations" && (
+                {section.id === "operations" && (
                   <ProjectsCollapsible pathname={pathname} />
                 )}
                 {section.items.map((item) => (
                   <NavItemLink
                     key={item.href}
                     item={item}
+                    label={t(`nav.${item.id}`)}
                     active={isActive(pathname, item.href)}
                     badge={badgeMap[item.href]}
                   />
@@ -329,6 +338,7 @@ export function AppSidebar() {
             <NavItemLink
               key={item.href}
               item={item}
+              label={t(`nav.${item.id}`)}
               active={isActive(pathname, item.href)}
             />
           ))}
