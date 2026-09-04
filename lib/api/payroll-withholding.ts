@@ -26,6 +26,10 @@ import {
   computePeriodWithholding,
   computeFica,
   computeEmployerTaxes,
+  computeCnss,
+  computeAmo,
+  computeMoroccanProfessionalExpenseDeduction,
+  MA_DEPENDENT_ALLOWANCE_VALUE_CENTS,
   payPeriodsPerYear,
   type MarginalBracket,
 } from "@/lib/api/payroll-tax";
@@ -232,20 +236,39 @@ export async function computeEmployeeWithholding(
     );
 
     if (brackets.length > 0) {
-      const allowanceCfg = await loadAllowanceConfig(
-        organizationId,
-        "federal",
-        year,
-        exec
-      );
+      // Morocco's IR has two deductions that don't come from taxAllowanceConfig:
+      // a 35%/25%-of-gross professional-expense deduction (computed per employee,
+      // not a flat org-level config row) standing in for standardDeductionCents,
+      // and a 600 MAD/year deduction per dependent — reusing the generic
+      // "federalAllowances" count (capped at 6) as Morocco's dependent count,
+      // since it's structurally the same "N allowances × value each" shape.
+      let allowances = taxCfg?.federalAllowances ?? 0;
+      let allowanceValueCents: number;
+      let standardDeductionCents: number;
+      if (settings?.country === "MA") {
+        allowances = Math.min(allowances, 6);
+        allowanceValueCents = MA_DEPENDENT_ALLOWANCE_VALUE_CENTS;
+        standardDeductionCents = computeMoroccanProfessionalExpenseDeduction(
+          taxableIncome * periods
+        );
+      } else {
+        const allowanceCfg = await loadAllowanceConfig(
+          organizationId,
+          "federal",
+          year,
+          exec
+        );
+        allowanceValueCents = allowanceCfg.allowanceValueCents;
+        standardDeductionCents = allowanceCfg.standardDeductionCents;
+      }
       const fed = computePeriodWithholding({
         annualTaxableWage: taxableIncome * periods,
         brackets,
         filingStatus,
         payPeriodsPerYear: periods,
-        allowances: taxCfg?.federalAllowances ?? 0,
-        allowanceValueCents: allowanceCfg.allowanceValueCents,
-        standardDeductionCents: allowanceCfg.standardDeductionCents,
+        allowances,
+        allowanceValueCents,
+        standardDeductionCents,
         additionalWithholding: taxCfg?.additionalWithholding ?? 0,
       });
       incomeTax = fed.periodWithholding;
@@ -265,47 +288,90 @@ export async function computeEmployeeWithholding(
     });
   }
 
-  // ── Employee FICA ─────────────────────────────────────────────────
-  // Only when the org has FICA params (defaults are populated on the settings
-  // row). If there is no settings row at all, skip FICA rather than guessing.
+  // ── Employee/employer contributions ─────────────────────────────────
+  // Only when the org has a settings row at all (skip rather than guess).
   if (settings && !exempt) {
-    const fica = computeFica({
-      periodWage: taxableIncome,
-      ytdWage,
-      ssWageBaseCents: settings.ssWageBaseCents,
-      ssRateBp: settings.ssRateBp,
-      medicareRateBp: settings.medicareRateBp,
-      addlMedicareThresholdCents: settings.addlMedicareThresholdCents,
-      addlMedicareRateBp: settings.addlMedicareRateBp,
-    });
-    if (fica.socialSecurity > 0)
-      breakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "social_security", amount: fica.socialSecurity });
-    if (fica.medicare > 0)
-      breakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "medicare", amount: fica.medicare });
-    if (fica.additionalMedicare > 0)
-      breakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "additional_medicare", amount: fica.additionalMedicare });
+    if (settings.country === "MA") {
+      // ── Morocco: CNSS + AMO ─────────────────────────────────────────
+      const cnss = computeCnss({
+        periodWage: taxableIncome,
+        monthlyCeilingCents: settings.cnssMonthlyCeilingCents,
+        pensionEmployeeRateBp: settings.cnssPensionEmployeeRateBp,
+        ctEmployeeRateBp: settings.cnssCtEmployeeRateBp,
+        ipeEmployeeRateBp: settings.cnssIpeEmployeeRateBp,
+        allocationsFamilialesRateBp: settings.cnssAllocationsFamilialesRateBp,
+        pensionEmployerRateBp: settings.cnssPensionEmployerRateBp,
+        ctEmployerRateBp: settings.cnssCtEmployerRateBp,
+        ipeEmployerRateBp: settings.cnssIpeEmployerRateBp,
+        tfpRateBp: settings.cnssTfpRateBp,
+      });
+      const amo = computeAmo({
+        periodWage: taxableIncome,
+        employeeRateBp: settings.cnssAmoEmployeeRateBp,
+        employerRateBp: settings.cnssAmoEmployerRateBp,
+      });
 
-    // ── Employer-side taxes ─────────────────────────────────────────
-    const employer = computeEmployerTaxes({
-      periodWage: taxableIncome,
-      ytdWage,
-      employerFicaEnabled: settings.employerFicaEnabled,
-      ssWageBaseCents: settings.ssWageBaseCents,
-      ssRateBp: settings.ssRateBp,
-      medicareRateBp: settings.medicareRateBp,
-      futaRateBp: settings.futaRateBp,
-      futaWageBaseCents: settings.futaWageBaseCents,
-      sutaRateBp: settings.sutaRateBp,
-      sutaWageBaseCents: settings.sutaWageBaseCents,
-    });
-    if (employer.socialSecurity > 0)
-      employerBreakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "employer_social_security", amount: employer.socialSecurity });
-    if (employer.medicare > 0)
-      employerBreakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "employer_medicare", amount: employer.medicare });
-    if (employer.futa > 0)
-      employerBreakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "futa", amount: employer.futa });
-    if (employer.suta > 0)
-      employerBreakdown.push({ jurisdictionLevel: "state", jurisdiction: null, taxKind: "suta", amount: employer.suta });
+      if (cnss.employee.pension > 0)
+        breakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "cnss_pension", amount: cnss.employee.pension });
+      if (cnss.employee.ct > 0)
+        breakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "cnss_ct", amount: cnss.employee.ct });
+      if (cnss.employee.ipe > 0)
+        breakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "cnss_ipe", amount: cnss.employee.ipe });
+      if (amo.employee > 0)
+        breakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "amo", amount: amo.employee });
+
+      if (cnss.employer.pension > 0)
+        employerBreakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "employer_cnss_pension", amount: cnss.employer.pension });
+      if (cnss.employer.ct > 0)
+        employerBreakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "employer_cnss_ct", amount: cnss.employer.ct });
+      if (cnss.employer.ipe > 0)
+        employerBreakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "employer_cnss_ipe", amount: cnss.employer.ipe });
+      if (cnss.employer.allocationsFamiliales > 0)
+        employerBreakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "employer_cnss_allocations_familiales", amount: cnss.employer.allocationsFamiliales });
+      if (cnss.employer.tfp > 0)
+        employerBreakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "employer_tfp", amount: cnss.employer.tfp });
+      if (amo.employer > 0)
+        employerBreakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "employer_amo", amount: amo.employer });
+    } else {
+      // ── US: FICA ──────────────────────────────────────────────────
+      const fica = computeFica({
+        periodWage: taxableIncome,
+        ytdWage,
+        ssWageBaseCents: settings.ssWageBaseCents,
+        ssRateBp: settings.ssRateBp,
+        medicareRateBp: settings.medicareRateBp,
+        addlMedicareThresholdCents: settings.addlMedicareThresholdCents,
+        addlMedicareRateBp: settings.addlMedicareRateBp,
+      });
+      if (fica.socialSecurity > 0)
+        breakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "social_security", amount: fica.socialSecurity });
+      if (fica.medicare > 0)
+        breakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "medicare", amount: fica.medicare });
+      if (fica.additionalMedicare > 0)
+        breakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "additional_medicare", amount: fica.additionalMedicare });
+
+      // ── Employer-side taxes ─────────────────────────────────────────
+      const employer = computeEmployerTaxes({
+        periodWage: taxableIncome,
+        ytdWage,
+        employerFicaEnabled: settings.employerFicaEnabled,
+        ssWageBaseCents: settings.ssWageBaseCents,
+        ssRateBp: settings.ssRateBp,
+        medicareRateBp: settings.medicareRateBp,
+        futaRateBp: settings.futaRateBp,
+        futaWageBaseCents: settings.futaWageBaseCents,
+        sutaRateBp: settings.sutaRateBp,
+        sutaWageBaseCents: settings.sutaWageBaseCents,
+      });
+      if (employer.socialSecurity > 0)
+        employerBreakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "employer_social_security", amount: employer.socialSecurity });
+      if (employer.medicare > 0)
+        employerBreakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "employer_medicare", amount: employer.medicare });
+      if (employer.futa > 0)
+        employerBreakdown.push({ jurisdictionLevel: "federal", jurisdiction: null, taxKind: "futa", amount: employer.futa });
+      if (employer.suta > 0)
+        employerBreakdown.push({ jurisdictionLevel: "state", jurisdiction: null, taxKind: "suta", amount: employer.suta });
+    }
   }
 
   const totalTax = breakdown.reduce((s, b) => s + b.amount, 0);
