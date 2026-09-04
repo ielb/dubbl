@@ -12,6 +12,7 @@ import { ContentReveal } from "@/components/ui/content-reveal";
 import { formatMoney } from "@/lib/money";
 import { BrandLoader } from "@/components/dashboard/brand-loader";
 import { useDocumentTitle } from "@/lib/hooks/use-document-title";
+import { useTranslations } from "next-intl";
 
 interface Employee {
   id: string;
@@ -47,12 +48,13 @@ const anim = (delay: number) => ({
 });
 
 export default function PayrollPage() {
+  const t = useTranslations("Payroll");
   const router = useRouter();
   const { open: openDrawer } = useCreateDrawer();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [runs, setRuns] = useState<PayrollRun[]>([]);
   const [loading, setLoading] = useState(true);
-  useDocumentTitle("Payroll · Overview");
+  useDocumentTitle(t("overview.documentTitle"));
 
   useEffect(() => {
     const orgId = localStorage.getItem("activeOrgId");
@@ -93,10 +95,10 @@ export default function PayrollPage() {
         {/* Ghost stat cards */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { icon: Users, label: "Active Employees" },
-            { icon: DollarSign, label: "Monthly Cost" },
-            { icon: FileText, label: "Last take-home" },
-            { icon: CalendarDays, label: "Paid this year" },
+            { icon: Users, label: t("overview.activeEmployees") },
+            { icon: DollarSign, label: t("overview.monthlyCost") },
+            { icon: FileText, label: t("overview.lastTakeHome") },
+            { icon: CalendarDays, label: t("overview.paidThisYear") },
           ].map((card, i) => (
             <motion.div
               key={card.label}
@@ -150,13 +152,13 @@ export default function PayrollPage() {
               {...anim(0.4)}
               className="text-lg font-semibold"
             >
-              Set up your payroll
+              {t("overview.setupTitle")}
             </motion.h3>
             <motion.p
               {...anim(0.45)}
               className="mt-2 max-w-md text-sm text-muted-foreground leading-relaxed"
             >
-              Add employees with their pay details, then run payroll to work out what each person takes home. Track costs, taxes, and take-home pay all in one place.
+              {t("overview.setupDescription")}
             </motion.p>
 
             {/* Steps */}
@@ -166,19 +168,19 @@ export default function PayrollPage() {
             >
               <div className="flex items-center gap-2.5 rounded-lg border bg-card px-4 py-2.5 shadow-sm">
                 <div className="flex size-6 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-xs font-bold text-emerald-700 dark:text-emerald-300">1</div>
-                <span className="text-sm font-medium">Add employees</span>
+                <span className="text-sm font-medium">{t("overview.addEmployees")}</span>
               </div>
               <div className="hidden sm:block h-px w-6 bg-muted-foreground/20" />
               <div className="sm:hidden w-px h-4 bg-muted-foreground/20" />
               <div className="flex items-center gap-2.5 rounded-lg border bg-card px-4 py-2.5 shadow-sm opacity-60">
                 <div className="flex size-6 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">2</div>
-                <span className="text-sm font-medium text-muted-foreground">Run payroll</span>
+                <span className="text-sm font-medium text-muted-foreground">{t("overview.runPayroll")}</span>
               </div>
               <div className="hidden sm:block h-px w-6 bg-muted-foreground/20" />
               <div className="sm:hidden w-px h-4 bg-muted-foreground/20" />
               <div className="flex items-center gap-2.5 rounded-lg border bg-card px-4 py-2.5 shadow-sm opacity-40">
                 <div className="flex size-6 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">3</div>
-                <span className="text-sm font-medium text-muted-foreground">Track payments</span>
+                <span className="text-sm font-medium text-muted-foreground">{t("overview.trackPayments")}</span>
               </div>
             </motion.div>
 
@@ -189,7 +191,7 @@ export default function PayrollPage() {
                 className="bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/20"
               >
                 <Plus className="mr-2 size-4" />
-                Add Your First Employee
+                {t("overview.addFirstEmployee")}
               </Button>
             </motion.div>
           </div>
@@ -197,7 +199,7 @@ export default function PayrollPage() {
 
         {/* Ghost recent runs section */}
         <motion.div {...anim(0.6)} className="space-y-3">
-          <h3 className="text-sm font-semibold text-muted-foreground/50">Recent Runs</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground/50">{t("overview.recentRuns")}</h3>
           <div className="rounded-xl border border-dashed border-muted-foreground/15 divide-y divide-dashed divide-muted-foreground/10">
             {[1, 2, 3].map((i) => (
               <div key={i} className="flex items-center gap-4 px-4 py-3.5" style={{ opacity: 1 - i * 0.25 }}>
@@ -217,14 +219,13 @@ export default function PayrollPage() {
 
   const breakdownRun = completedRuns.length > 0 ? completedRuns[0] : lastRun;
   const breakdownTotal = breakdownRun ? breakdownRun.totalGross : 0;
-  const grossPct = breakdownTotal > 0 ? 100 : 0;
   const deductionsPct = breakdownTotal > 0 ? (breakdownRun!.totalDeductions / breakdownTotal) * 100 : 0;
   const netPct = breakdownTotal > 0 ? (breakdownRun!.totalNet / breakdownTotal) * 100 : 0;
 
   return (
     <ContentReveal className="space-y-6">
       <motion.div {...anim(0)}>
-        <PageHeader title="Overview" />
+        <PageHeader title={t("overview.title")} />
       </motion.div>
 
       {/* Stat cards - 4 columns */}
@@ -232,7 +233,7 @@ export default function PayrollPage() {
         <motion.div {...anim(0)} className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Users className="size-4" />
-            <span className="text-[11px] font-medium uppercase tracking-wide">Active Employees</span>
+            <span className="text-[11px] font-medium uppercase tracking-wide">{t("overview.activeEmployees")}</span>
           </div>
           <p className="mt-2 text-2xl font-bold font-mono tabular-nums truncate">
             {activeEmployees.length}
@@ -242,7 +243,7 @@ export default function PayrollPage() {
         <motion.div {...anim(0.05)} className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
             <DollarSign className="size-4" />
-            <span className="text-[11px] font-medium uppercase tracking-wide">Monthly Payroll Cost</span>
+            <span className="text-[11px] font-medium uppercase tracking-wide">{t("overview.monthlyPayrollCost")}</span>
           </div>
           <p className="mt-2 text-2xl font-bold font-mono tabular-nums truncate">
             {formatMoney(Math.round(totalAnnualSalary / 12))}
@@ -252,7 +253,7 @@ export default function PayrollPage() {
         <motion.div {...anim(0.1)} className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
             <CalendarDays className="size-4" />
-            <span className="text-[11px] font-medium uppercase tracking-wide">Paid this year</span>
+            <span className="text-[11px] font-medium uppercase tracking-wide">{t("overview.paidThisYear")}</span>
           </div>
           <p className="mt-2 text-2xl font-bold font-mono tabular-nums truncate text-emerald-600 dark:text-emerald-400">
             {formatMoney(ytdPaid)}
@@ -262,7 +263,7 @@ export default function PayrollPage() {
         <motion.div {...anim(0.15)} className={`rounded-xl border bg-card p-4 ${draftRuns.length > 0 ? "border-amber-300/50 dark:border-amber-700/50" : ""}`}>
           <div className="flex items-center gap-2 text-muted-foreground">
             <FileText className="size-4" />
-            <span className="text-[11px] font-medium uppercase tracking-wide">Not finished yet</span>
+            <span className="text-[11px] font-medium uppercase tracking-wide">{t("overview.unfinished")}</span>
           </div>
           <p className={`mt-2 text-2xl font-bold font-mono tabular-nums truncate ${draftRuns.length > 0 ? "text-amber-600 dark:text-amber-400" : ""}`}>
             {draftRuns.length}
@@ -275,13 +276,13 @@ export default function PayrollPage() {
         {/* Left column - Recent Runs (~60%) */}
         <motion.div {...anim(0.2)} className="lg:col-span-3 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Recent Runs</h3>
+            <h3 className="text-sm font-semibold">{t("overview.recentRuns")}</h3>
             {runs.length > 0 && (
               <button
                 onClick={() => router.push("/payroll/runs")}
                 className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
-                View all
+                {t("overview.viewAll")}
                 <ArrowRight className="size-3" />
               </button>
             )}
@@ -291,9 +292,9 @@ export default function PayrollPage() {
               <div className="mx-auto flex size-10 items-center justify-center rounded-xl bg-muted mb-3">
                 <FileText className="size-5 text-muted-foreground" />
               </div>
-              <p className="text-sm font-medium">No runs yet</p>
+              <p className="text-sm font-medium">{t("overview.noRuns")}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Create a payroll run to pay your employees
+                {t("overview.noRunsDescription")}
               </p>
             </div>
           ) : (
@@ -310,17 +311,17 @@ export default function PayrollPage() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">
-                        {run.payPeriodStart} to {run.payPeriodEnd}
+                        {t("overview.periodRange", { start: run.payPeriodStart, end: run.payPeriodEnd })}
                       </p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <Badge variant="outline" className={statusColors[run.status] || ""}>
-                          {run.status}
+                          {t(`overview.status.${run.status}`)}
                         </Badge>
                       </div>
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-xs text-muted-foreground">Before deductions / Take-home</p>
+                    <p className="text-xs text-muted-foreground">{t("overview.grossAndNet")}</p>
                     <p className="text-sm font-mono tabular-nums">
                       {formatMoney(run.totalGross)} / {formatMoney(run.totalNet)}
                     </p>
@@ -335,7 +336,7 @@ export default function PayrollPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Payroll Breakdown */}
           <motion.div {...anim(0.25)} className="space-y-3">
-            <h3 className="text-sm font-semibold">Payroll Breakdown</h3>
+            <h3 className="text-sm font-semibold">{t("overview.breakdown")}</h3>
             <div className="rounded-xl border bg-card p-4 space-y-4">
               {breakdownRun ? (
                 <>
@@ -360,7 +361,7 @@ export default function PayrollPage() {
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2">
                         <div className="size-2.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
-                        <span className="text-muted-foreground">Take-home pay</span>
+                        <span className="text-muted-foreground">{t("overview.takeHomePay")}</span>
                       </div>
                       <span className="font-mono tabular-nums font-medium">
                         {formatMoney(breakdownRun.totalNet)}
@@ -369,7 +370,7 @@ export default function PayrollPage() {
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2">
                         <div className="size-2.5 rounded-full bg-amber-500 dark:bg-amber-400" />
-                        <span className="text-muted-foreground">Taxes &amp; deductions</span>
+                        <span className="text-muted-foreground">{t("overview.taxesAndDeductions")}</span>
                       </div>
                       <span className="font-mono tabular-nums font-medium">
                         {formatMoney(breakdownRun.totalDeductions)}
@@ -377,7 +378,7 @@ export default function PayrollPage() {
                     </div>
                     <div className="h-px bg-border" />
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground font-medium">Total before deductions</span>
+                      <span className="text-muted-foreground font-medium">{t("overview.totalBeforeDeductions")}</span>
                       <span className="font-mono tabular-nums font-semibold">
                         {formatMoney(breakdownRun.totalGross)}
                       </span>
@@ -388,7 +389,7 @@ export default function PayrollPage() {
                 <div className="flex flex-col items-center py-6 text-center">
                   <BarChart3 className="size-5 text-muted-foreground/50 mb-2" />
                   <p className="text-xs text-muted-foreground">
-                    Run your first payroll to see a breakdown
+                    {t("overview.noBreakdown")}
                   </p>
                 </div>
               )}
@@ -397,14 +398,14 @@ export default function PayrollPage() {
 
           {/* Quick Actions */}
           <motion.div {...anim(0.3)} className="space-y-3">
-            <h3 className="text-sm font-semibold">Quick Actions</h3>
+            <h3 className="text-sm font-semibold">{t("overview.quickActions")}</h3>
             <div className="rounded-xl border bg-card p-4 flex flex-col gap-2">
               <Button
                 className="w-full bg-emerald-600 hover:bg-emerald-700 shadow-sm"
                 onClick={() => router.push("/payroll/runs")}
               >
                 <Plus className="mr-2 size-4" />
-                New Run
+                {t("overview.newRun")}
               </Button>
               <Button
                 variant="outline"
@@ -412,7 +413,7 @@ export default function PayrollPage() {
                 onClick={() => openDrawer("employee")}
               >
                 <Users className="mr-2 size-4" />
-                Add Employee
+                {t("overview.addEmployee")}
               </Button>
             </div>
           </motion.div>

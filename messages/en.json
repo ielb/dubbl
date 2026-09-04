@@ -112,6 +112,25 @@
       "salesTax": "Sales Tax",
       "scheduleC": "Schedule C",
       "tvaDeclaration": "TVA Declaration"
+    },
+    "tva": {
+      "documentTitle": "Tax · TVA Declaration",
+      "title": "TVA Declaration",
+      "description": "Moroccan TVA declaration for the selected period. Box numbering is approximate; confirm it against the official DGI form before filing.",
+      "print": "Print",
+      "due": "TVA due to the DGI",
+      "credit": "TVA credit carried forward",
+      "allBoxes": "All boxes",
+      "calculated": "Calculated",
+      "comparison": "Output TVA vs deductible TVA",
+      "output": "Output TVA charged",
+      "input": "Deductible input TVA",
+      "boxes": {
+        "1": "Taxable revenue (tax base)",
+        "2": "Output TVA charged",
+        "3": "Deductible / recoverable input TVA",
+        "4": "TVA due / TVA credit (box 2 minus box 3)"
+      }
     }
   },
   "Payroll": {
@@ -133,6 +152,42 @@
       "unitedStates": "United States",
       "morocco": "Morocco",
       "countryHelp": "Controls payroll withholding independently of your business country."
+    },
+    "overview": {
+      "documentTitle": "Payroll · Overview",
+      "title": "Overview",
+      "activeEmployees": "Active Employees",
+      "monthlyCost": "Monthly Cost",
+      "monthlyPayrollCost": "Monthly Payroll Cost",
+      "lastTakeHome": "Last take-home",
+      "paidThisYear": "Paid this year",
+      "unfinished": "Not finished yet",
+      "setupTitle": "Set up your payroll",
+      "setupDescription": "Add employees with their pay details, then run payroll to work out what each person takes home. Track costs, taxes, and take-home pay all in one place.",
+      "addEmployees": "Add employees",
+      "runPayroll": "Run payroll",
+      "trackPayments": "Track payments",
+      "addFirstEmployee": "Add Your First Employee",
+      "recentRuns": "Recent Runs",
+      "viewAll": "View all",
+      "noRuns": "No runs yet",
+      "noRunsDescription": "Create a payroll run to pay your employees",
+      "periodRange": "{start} to {end}",
+      "grossAndNet": "Before deductions / Take-home",
+      "breakdown": "Payroll Breakdown",
+      "takeHomePay": "Take-home pay",
+      "taxesAndDeductions": "Taxes & deductions",
+      "totalBeforeDeductions": "Total before deductions",
+      "noBreakdown": "Run your first payroll to see a breakdown",
+      "quickActions": "Quick Actions",
+      "newRun": "New Run",
+      "addEmployee": "Add Employee",
+      "status": {
+        "draft": "Draft",
+        "processing": "Processing",
+        "completed": "Completed",
+        "void": "Void"
+      }
     },
     "taxForms": {
       "documentTitle": "Payroll · Filing Documents",

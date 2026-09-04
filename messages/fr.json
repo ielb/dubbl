@@ -112,6 +112,25 @@
       "salesTax": "Taxe de vente",
       "scheduleC": "Annexe C",
       "tvaDeclaration": "Déclaration de TVA"
+    },
+    "tva": {
+      "documentTitle": "Taxes · Déclaration de TVA",
+      "title": "Déclaration de TVA",
+      "description": "Déclaration marocaine de TVA pour la période sélectionnée. La numérotation des cases est indicative ; vérifiez-la sur le formulaire officiel de la DGI avant tout dépôt.",
+      "print": "Imprimer",
+      "due": "TVA due à la DGI",
+      "credit": "Crédit de TVA à reporter",
+      "allBoxes": "Toutes les cases",
+      "calculated": "Calculé",
+      "comparison": "TVA facturée et TVA déductible",
+      "output": "TVA facturée (collectée)",
+      "input": "TVA déductible (récupérable)",
+      "boxes": {
+        "1": "Chiffre d'affaires imposable (base imposable)",
+        "2": "TVA facturée (collectée)",
+        "3": "TVA déductible / récupérable",
+        "4": "TVA due / Crédit de TVA (case 2 moins case 3)"
+      }
     }
   },
   "Payroll": {
@@ -133,6 +152,42 @@
       "unitedStates": "États-Unis",
       "morocco": "Maroc",
       "countryHelp": "Détermine les retenues sur salaire indépendamment du pays de votre entreprise."
+    },
+    "overview": {
+      "documentTitle": "Paie · Aperçu",
+      "title": "Aperçu",
+      "activeEmployees": "Employés actifs",
+      "monthlyCost": "Coût mensuel",
+      "monthlyPayrollCost": "Coût mensuel de la paie",
+      "lastTakeHome": "Dernier net versé",
+      "paidThisYear": "Versé cette année",
+      "unfinished": "Cycles non terminés",
+      "setupTitle": "Configurez votre paie",
+      "setupDescription": "Ajoutez les employés et leurs conditions de rémunération, puis lancez la paie pour calculer le net à verser. Suivez les coûts, les retenues et les salaires nets au même endroit.",
+      "addEmployees": "Ajouter des employés",
+      "runPayroll": "Lancer la paie",
+      "trackPayments": "Suivre les règlements",
+      "addFirstEmployee": "Ajouter votre premier employé",
+      "recentRuns": "Cycles récents",
+      "viewAll": "Tout voir",
+      "noRuns": "Aucun cycle de paie",
+      "noRunsDescription": "Créez un cycle de paie pour rémunérer vos employés",
+      "periodRange": "Du {start} au {end}",
+      "grossAndNet": "Brut / Net à verser",
+      "breakdown": "Répartition de la paie",
+      "takeHomePay": "Net à verser",
+      "taxesAndDeductions": "Retenues et cotisations",
+      "totalBeforeDeductions": "Total brut",
+      "noBreakdown": "Lancez votre premier cycle pour afficher la répartition",
+      "quickActions": "Actions rapides",
+      "newRun": "Nouveau cycle",
+      "addEmployee": "Ajouter un employé",
+      "status": {
+        "draft": "Brouillon",
+        "processing": "En cours",
+        "completed": "Terminé",
+        "void": "Annulé"
+      }
     },
     "taxForms": {
       "documentTitle": "Paie · Documents déclaratifs",
