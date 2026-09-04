@@ -158,6 +158,8 @@ export const taxFormTypeEnum = pgEnum("tax_form_type", [
   "1099_nec",
   "1099_misc",
   "w2",
+  "ma_cnss_declaration",
+  "ma_ir_annual_summary",
 ]);
 
 export const taxFormStatusEnum = pgEnum("tax_form_status", [

@@ -17,14 +17,35 @@ import {
 import { eq, and, sql, gte, lt, inArray } from "drizzle-orm";
 import { getAuthContext } from "@/lib/api/auth-context";
 import { requireRole } from "@/lib/api/require-role";
-import { handleError } from "@/lib/api/response";
+import { handleError, validationError } from "@/lib/api/response";
 import { logAudit } from "@/lib/api/audit";
+import { generateMoroccanTaxForms } from "@/lib/payroll/morocco-tax-form-generation";
+import {
+  isMoroccanTaxFormType,
+  MOROCCAN_TAX_FORM_TYPES,
+} from "@/lib/payroll/morocco-tax-forms";
 import { z } from "zod";
 
-const generateSchema = z.object({
-  taxYear: z.number().int().min(2020).max(2099),
-  formType: z.enum(["1099_nec", "1099_misc", "w2"]),
-});
+const generateSchema = z
+  .object({
+    taxYear: z.number().int().min(2020).max(2099),
+    taxMonth: z.number().int().min(1).max(12).optional(),
+    formType: z.enum([
+      "1099_nec",
+      "1099_misc",
+      "w2",
+      ...MOROCCAN_TAX_FORM_TYPES,
+    ]),
+  })
+  .superRefine((value, ctx) => {
+    if (value.formType === "ma_cnss_declaration" && value.taxMonth == null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["taxMonth"],
+        message: "taxMonth is required for a Moroccan CNSS declaration",
+      });
+    }
+  });
 
 // Group the per-jurisdiction tax-breakdown rows that drive a W-2 by the kind of
 // tax they represent. The withholding engine writes these exact taxKind values
@@ -60,6 +81,17 @@ export async function POST(request: Request) {
     const body = await request.json();
     const parsed = generateSchema.parse(body);
 
+    if (isMoroccanTaxFormType(parsed.formType)) {
+      const settings = await db.query.payrollSettings.findFirst({
+        where: eq(payrollSettings.organizationId, ctx.organizationId),
+      });
+      if (settings?.country !== "MA") {
+        return validationError(
+          "Moroccan filing documents require payroll country Morocco"
+        );
+      }
+    }
+
     const mem = await db.query.member.findFirst({
       where: and(eq(member.organizationId, ctx.organizationId), eq(member.userId, ctx.userId)),
     });
@@ -74,7 +106,7 @@ export async function POST(request: Request) {
 
     const yearStart = `${parsed.taxYear}-01-01`;
     const yearEnd = `${parsed.taxYear + 1}-01-01`;
-    const forms = [];
+    const forms: (typeof taxForm.$inferSelect)[] = [];
 
     if (parsed.formType === "1099_nec") {
       const contractorTotals = await db
@@ -280,6 +312,16 @@ export async function POST(request: Request) {
         }).returning();
         forms.push(form);
       }
+    } else if (isMoroccanTaxFormType(parsed.formType)) {
+      forms.push(
+        ...(await generateMoroccanTaxForms({
+          organizationId: ctx.organizationId,
+          generationId: generation.id,
+          taxYear: parsed.taxYear,
+          taxMonth: parsed.taxMonth,
+          formType: parsed.formType,
+        }))
+      );
     }
 
     await db.update(taxFormGeneration).set({ status: "generated", generatedAt: new Date() }).where(eq(taxFormGeneration.id, generation.id));

@@ -3,6 +3,17 @@ export interface TaxBreakdownAmount {
   amount: number;
 }
 
+export const MOROCCAN_TAX_FORM_TYPES = [
+  "ma_cnss_declaration",
+  "ma_ir_annual_summary",
+] as const;
+
+export type MoroccanTaxFormType = (typeof MOROCCAN_TAX_FORM_TYPES)[number];
+
+export function isMoroccanTaxFormType(value: string): value is MoroccanTaxFormType {
+  return MOROCCAN_TAX_FORM_TYPES.includes(value as MoroccanTaxFormType);
+}
+
 export interface MoroccanContributionSummary {
   irWithheld: number;
   employee: {

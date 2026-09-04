@@ -35,6 +35,11 @@ import {
   type EmployerTaxLine,
 } from "@/lib/api/payroll-withholding";
 import { taxBreakdownToDeductionLines, loadTaxBreakdownByItem } from "@/lib/payroll/payslip-generator";
+import { generateMoroccanTaxForms } from "@/lib/payroll/morocco-tax-form-generation";
+import {
+  isMoroccanTaxFormType,
+  MOROCCAN_TAX_FORM_TYPES,
+} from "@/lib/payroll/morocco-tax-forms";
 import {
   getNextEntryNumber,
   findAccountByCode,
@@ -821,16 +826,42 @@ export function registerPayrollTools(server: McpServer, ctx: AuthContext) {
   // ─── Tax Forms ────────────────────────────────────────────────────
   server.tool(
     "generate_tax_forms",
-    "Generate year-end tax forms for a tax year. formType 'w2' produces one W-2 per employee from completed payroll runs (wages/tax in integer cents). formType '1099_nec' produces a 1099-NEC for each contractor paid at least $600 (60000 cents) of 'paid' payments in the year. Creates a tax-form-generation batch plus the individual forms. Returns the generation record and the count of forms generated.",
+    "Generate stored payroll filing documents. 'w2' produces one W-2 per employee; '1099_nec' produces one form per contractor paid at least 60000 cents in the year; 'ma_cnss_declaration' produces one Moroccan monthly CNSS declaration with employee and employer contribution lines; 'ma_ir_annual_summary' produces one Moroccan annual IR summary per employee. Moroccan forms require payroll country MA, and CNSS requires taxMonth. All monetary values in stored form data are integer cents. Returns the generation record and number of forms generated.",
     {
       taxYear: z.number().int().min(2020).max(2099).describe("Tax year (e.g. 2026)"),
+      taxMonth: z
+        .number()
+        .int()
+        .min(1)
+        .max(12)
+        .optional()
+        .describe("Calendar month 1-12. Required only for ma_cnss_declaration."),
       formType: z
-        .enum(["1099_nec", "1099_misc", "w2"])
-        .describe("Form type. 'w2' for employees, '1099_nec' for contractors."),
+        .enum([
+          "1099_nec",
+          "1099_misc",
+          "w2",
+          ...MOROCCAN_TAX_FORM_TYPES,
+        ])
+        .describe("Exact filing document type to generate."),
     },
     (params) =>
       wrapTool(ctx, async () => {
         requireRole(ctx, "manage:payroll");
+
+        if (params.formType === "ma_cnss_declaration" && params.taxMonth == null) {
+          throw new Error("taxMonth is required for a Moroccan CNSS declaration");
+        }
+        if (isMoroccanTaxFormType(params.formType)) {
+          const settings = await db.query.payrollSettings.findFirst({
+            where: eq(payrollSettings.organizationId, ctx.organizationId),
+          });
+          if (settings?.country !== "MA") {
+            throw new Error(
+              "Moroccan filing documents require payroll country Morocco"
+            );
+          }
+        }
 
         const mem = await db.query.member.findFirst({
           where: and(
@@ -946,6 +977,16 @@ export function registerPayrollTools(server: McpServer, ctx: AuthContext) {
               .returning();
             forms.push(form);
           }
+        } else if (isMoroccanTaxFormType(params.formType)) {
+          forms.push(
+            ...(await generateMoroccanTaxForms({
+              organizationId: ctx.organizationId,
+              generationId: generation.id,
+              taxYear: params.taxYear,
+              taxMonth: params.taxMonth,
+              formType: params.formType,
+            }))
+          );
         }
 
         await db
@@ -957,6 +998,100 @@ export function registerPayrollTools(server: McpServer, ctx: AuthContext) {
           generation: { ...generation, status: "generated" },
           formsGenerated: forms.length,
         };
+      })
+  );
+
+  server.tool(
+    "list_tax_form_generations",
+    "List stored payroll filing generations and their forms for this organization, newest first. Supports US and Moroccan form types. Monetary values inside each formData object are integer cents. Returns paginated generations with nested forms.",
+    {
+      taxYear: z
+        .number()
+        .int()
+        .min(2020)
+        .max(2099)
+        .optional()
+        .describe("Optional tax year filter"),
+      formType: z
+        .enum([
+          "1099_nec",
+          "1099_misc",
+          "w2",
+          ...MOROCCAN_TAX_FORM_TYPES,
+        ])
+        .optional()
+        .describe("Optional exact filing document type filter"),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(200)
+        .optional()
+        .default(50)
+        .describe("Maximum generations to return, up to 200"),
+      page: z
+        .number()
+        .int()
+        .min(1)
+        .optional()
+        .default(1)
+        .describe("Page number, starting at 1"),
+    },
+    (params) =>
+      wrapTool(ctx, async () => {
+        requireRole(ctx, "manage:payroll");
+
+        const conditions = [
+          eq(taxFormGeneration.organizationId, ctx.organizationId),
+          notDeleted(taxFormGeneration.deletedAt),
+        ];
+        if (params.taxYear != null) {
+          conditions.push(eq(taxFormGeneration.taxYear, params.taxYear));
+        }
+        if (params.formType != null) {
+          conditions.push(eq(taxFormGeneration.formType, params.formType));
+        }
+
+        const offset = (params.page - 1) * params.limit;
+        const generations = await db.query.taxFormGeneration.findMany({
+          where: and(...conditions),
+          orderBy: desc(taxFormGeneration.createdAt),
+          limit: params.limit,
+          offset,
+          with: { forms: true },
+        });
+        const [countResult] = await db
+          .select({ count: sql<number>`count(*)`.mapWith(Number) })
+          .from(taxFormGeneration)
+          .where(and(...conditions));
+
+        return {
+          generations,
+          total: Number(countResult?.count ?? 0),
+          page: params.page,
+          limit: params.limit,
+        };
+      })
+  );
+
+  server.tool(
+    "get_tax_form",
+    "Get one stored payroll filing form by UUID for this organization. Returns form metadata plus formData; every monetary value in formData is an integer number of cents.",
+    {
+      taxFormId: z.string().describe("UUID of the stored tax form"),
+    },
+    (params) =>
+      wrapTool(ctx, async () => {
+        requireRole(ctx, "manage:payroll");
+
+        const form = await db.query.taxForm.findFirst({
+          where: eq(taxForm.id, params.taxFormId),
+          with: { generation: true },
+        });
+        if (!form || form.generation.organizationId !== ctx.organizationId) {
+          throw new Error("Tax form not found");
+        }
+        return { form };
       })
   );
 
