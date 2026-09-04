@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Search, Plus, Menu } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
@@ -187,6 +188,15 @@ function getLabel(segment: string): string {
   return LABELS[segment] || segment;
 }
 
+// Breadcrumb segments that belong to the translated core slice (dashboard shell +
+// settings General) get a translated label; every other segment stays in LABELS
+// (English) since those destination pages aren't translated yet.
+const CORE_SLICE_LABEL_KEYS: Record<string, string> = {
+  dashboard: "Topbar.overview",
+  settings: "Sidebar.nav.settings",
+  general: "SettingsNav.general",
+};
+
 type DrawerType = "contact" | "project" | "invoice" | "bill" | "entry" | "inventory" | "quote" | "salesReceipt" | "purchaseOrder" | "expense" | "fixedAsset" | "budget" | "employee" | "creditNote" | "recurring" | "account" | "bankAccount" | "warehouse" | "stockTake" | "category" | "transfer" | "contractor" | "debitNote" | "customerCredit" | "loan" | "openingBalance" | "accrualSchedule" | "revenueSchedule" | "recurringJournal";
 
 const CTA_MAP: Record<string, { label: string; drawer: DrawerType } | null> = {
@@ -237,6 +247,10 @@ export function Topbar() {
 }
 
 function TopbarInner({ customAction }: { customAction: ReactNode }) {
+  const t = useTranslations("Topbar");
+  const tAny = useTranslations();
+  const translatedLabel = (segment: string) =>
+    segment in CORE_SLICE_LABEL_KEYS ? tAny(CORE_SLICE_LABEL_KEYS[segment]) : getLabel(segment);
   const pathname = usePathname();
   const router = useRouter();
   const { open: openDrawer } = useCreateDrawer();
@@ -284,8 +298,9 @@ function TopbarInner({ customAction }: { customAction: ReactNode }) {
       if (!subTab) parentLabel = null;
     }
   } else {
-    pageTitle = effectiveSegments[effectiveSegments.length - 1] ? getLabel(effectiveSegments[effectiveSegments.length - 1]) : "Overview";
-    parentLabel = effectiveSegments.length > 1 ? getLabel(effectiveSegments[0]) : null;
+    const lastSegment = effectiveSegments[effectiveSegments.length - 1];
+    pageTitle = lastSegment ? translatedLabel(lastSegment) : t("overview");
+    parentLabel = effectiveSegments.length > 1 ? translatedLabel(effectiveSegments[0]) : null;
   }
 
   const subtabKey = `${segments[0]}/${segments[1]}`;
@@ -334,7 +349,7 @@ function TopbarInner({ customAction }: { customAction: ReactNode }) {
             className="hidden sm:flex items-center gap-2 text-muted-foreground text-xs h-7 px-2.5"
           >
             <Search className="size-3" />
-            <span>Search...</span>
+            <span>{t("search")}</span>
             <kbd className="pointer-events-none ml-1 inline-flex h-5 select-none items-center gap-0.5 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
               <span className="text-xs">&#8984;</span>K
             </kbd>

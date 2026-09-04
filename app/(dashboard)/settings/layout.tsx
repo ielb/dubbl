@@ -3,6 +3,7 @@
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Settings, Users, CreditCard, Key, ScrollText, Target,
   Bell, BellRing, GitBranch, Tags, Shield, ShieldCheck,
@@ -14,61 +15,61 @@ import { cn } from "@/lib/utils";
 
 interface NavItem {
   href: string;
-  label: string;
+  labelKey: string;
   icon: LucideIcon;
   exact?: boolean;
 }
 
 interface NavGroup {
-  label: string;
+  labelKey: string;
   items: NavItem[];
 }
 
 const GROUPS: NavGroup[] = [
   {
-    label: "Organization",
+    labelKey: "groupOrganization",
     items: [
-      { href: "/settings", label: "General", icon: Settings, exact: true },
-      { href: "/settings/members", label: "Members", icon: Users },
-      { href: "/settings/roles", label: "Roles", icon: ShieldCheck },
-      { href: "/settings/billing", label: "Billing", icon: CreditCard },
-      { href: "/settings/advisors", label: "Advisors", icon: Shield },
-      { href: "/settings/document-templates", label: "Templates", icon: PaintbrushVertical },
-      { href: "/settings/import-export", label: "Import & Export", icon: ArrowLeftRight },
-      { href: "/settings/trash", label: "Trash", icon: Trash2 },
-      { href: "/settings/backups", label: "Backups", icon: Database },
+      { href: "/settings", labelKey: "general", icon: Settings, exact: true },
+      { href: "/settings/members", labelKey: "members", icon: Users },
+      { href: "/settings/roles", labelKey: "roles", icon: ShieldCheck },
+      { href: "/settings/billing", labelKey: "billing", icon: CreditCard },
+      { href: "/settings/advisors", labelKey: "advisors", icon: Shield },
+      { href: "/settings/document-templates", labelKey: "templates", icon: PaintbrushVertical },
+      { href: "/settings/import-export", labelKey: "importExport", icon: ArrowLeftRight },
+      { href: "/settings/trash", labelKey: "trash", icon: Trash2 },
+      { href: "/settings/backups", labelKey: "backups", icon: Database },
     ],
   },
   {
-    label: "Automation",
+    labelKey: "groupAutomation",
     items: [
-      { href: "/settings/pipelines", label: "Pipelines", icon: Target },
-      { href: "/settings/bank-rules", label: "Bank Rules", icon: ListFilter },
-      { href: "/settings/approval-workflows", label: "Approvals", icon: CheckCircle2 },
-      { href: "/settings/procurement", label: "Bill Matching", icon: PackageCheck },
-      { href: "/settings/webhooks", label: "Webhooks", icon: Webhook },
+      { href: "/settings/pipelines", labelKey: "pipelines", icon: Target },
+      { href: "/settings/bank-rules", labelKey: "bankRules", icon: ListFilter },
+      { href: "/settings/approval-workflows", labelKey: "approvals", icon: CheckCircle2 },
+      { href: "/settings/procurement", labelKey: "billMatching", icon: PackageCheck },
+      { href: "/settings/webhooks", labelKey: "webhooks", icon: Webhook },
     ],
   },
   {
-    label: "Integrations",
+    labelKey: "groupIntegrations",
     items: [
-      { href: "/settings/integrations/stripe", label: "Stripe", icon: Zap },
+      { href: "/settings/integrations/stripe", labelKey: "stripe", icon: Zap },
     ],
   },
   {
-    label: "Preferences",
+    labelKey: "groupPreferences",
     items: [
-      { href: "/settings/notifications", label: "Notifications", icon: BellRing },
-      { href: "/settings/reminders", label: "Reminders", icon: Bell },
-      { href: "/settings/cost-centers", label: "Cost Centers", icon: GitBranch },
-      { href: "/settings/tags", label: "Tags", icon: Tags },
+      { href: "/settings/notifications", labelKey: "notifications", icon: BellRing },
+      { href: "/settings/reminders", labelKey: "reminders", icon: Bell },
+      { href: "/settings/cost-centers", labelKey: "costCenters", icon: GitBranch },
+      { href: "/settings/tags", labelKey: "tags", icon: Tags },
     ],
   },
   {
-    label: "Developer",
+    labelKey: "groupDeveloper",
     items: [
-      { href: "/settings/api-keys", label: "API Keys", icon: Key },
-      { href: "/settings/audit-log", label: "Audit Log", icon: ScrollText },
+      { href: "/settings/api-keys", labelKey: "apiKeys", icon: Key },
+      { href: "/settings/audit-log", labelKey: "auditLog", icon: ScrollText },
     ],
   },
 ];
@@ -80,6 +81,7 @@ export default function SettingsLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const t = useTranslations("SettingsNav");
   const pathname = usePathname();
 
   const isDetailPage =
@@ -100,9 +102,9 @@ export default function SettingsLayout({
       {!isDetailPage && (
         <nav className="hidden md:flex w-52 shrink-0 flex-col gap-6 -mt-1">
           {GROUPS.map((group) => (
-            <div key={group.label}>
+            <div key={group.labelKey}>
               <p className="mb-1.5 pl-0 pr-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                {group.label}
+                {t(group.labelKey)}
               </p>
               <div className="flex flex-col gap-0.5">
                 {group.items.map((item) => {
@@ -122,7 +124,7 @@ export default function SettingsLayout({
                       )}
                     >
                       <Icon className="size-3.5" />
-                      {item.label}
+                      {t(item.labelKey)}
                     </Link>
                   );
                 })}
@@ -152,7 +154,7 @@ export default function SettingsLayout({
                 )}
               >
                 <Icon className="size-3.5" />
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             );
           })}

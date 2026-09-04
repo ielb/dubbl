@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useTranslations, useLocale } from "next-intl";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import {
   DollarSign,
@@ -37,61 +38,31 @@ import { CashFlowWidget } from "@/components/dashboard/cash-flow-widget";
 import { useDocumentTitle } from "@/lib/hooks/use-document-title";
 import { useOrganization } from "@/components/dashboard/org-loader";
 
-const GREETINGS_MORNING = [
-  "Good morning",
-  "Rise and shine",
-  "Morning",
-  "Top of the morning",
-];
+interface GreetingPools {
+  morning: string[];
+  afternoon: string[];
+  evening: string[];
+  anytime: string[];
+  days: string[];
+  happyDay: (day: string) => string;
+}
 
-const GREETINGS_AFTERNOON = [
-  "Good afternoon",
-  "Hope your afternoon is going well",
-  "Afternoon",
-];
-
-const GREETINGS_EVENING = [
-  "Good evening",
-  "Evening",
-  "Hope you had a great day",
-];
-
-const GREETINGS_ANYTIME = [
-  "Welcome back",
-  "Hey there",
-  "Nice to see you",
-  "Hello",
-  "Hi there",
-  "Great to have you back",
-  "Ready to go",
-];
-
-const DAY_NAMES = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
-
-function pickGreeting(): string {
+function pickGreeting(pools: GreetingPools): string {
   const now = new Date();
   const hour = now.getHours();
-  const day = DAY_NAMES[now.getDay()];
+  const day = pools.days[now.getDay()];
 
   const timePool =
     hour >= 5 && hour < 12
-      ? GREETINGS_MORNING
+      ? pools.morning
       : hour >= 12 && hour < 17
-      ? GREETINGS_AFTERNOON
-      : GREETINGS_EVENING;
+      ? pools.afternoon
+      : pools.evening;
 
   const allOptions = [
     ...timePool,
-    ...GREETINGS_ANYTIME,
-    `Happy ${day}`,
+    ...pools.anytime,
+    pools.happyDay(day),
   ];
 
   return allOptions[Math.floor(Math.random() * allOptions.length)];
@@ -128,59 +99,6 @@ interface AgingData {
   buckets: AgingBucket[];
   grandTotal: number;
 }
-
-const columns: Column<Entry>[] = [
-  {
-    key: "number",
-    header: "#",
-    className: "w-16",
-    render: (r) => (
-      <span className="font-mono text-xs text-muted-foreground">
-        {r.entryNumber}
-      </span>
-    ),
-  },
-  {
-    key: "date",
-    header: "Date",
-    className: "w-28",
-    render: (r) => <span className="text-sm">{r.date}</span>,
-  },
-  {
-    key: "description",
-    header: "Description",
-    render: (r) => <span className="text-sm font-medium">{r.description}</span>,
-  },
-  {
-    key: "status",
-    header: "Status",
-    className: "w-24",
-    render: (r) => (
-      <Badge
-        variant="outline"
-        className={
-          r.status === "posted"
-            ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400"
-            : r.status === "void"
-            ? "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400"
-            : ""
-        }
-      >
-        {r.status}
-      </Badge>
-    ),
-  },
-  {
-    key: "amount",
-    header: "Amount",
-    className: "w-28 text-right",
-    render: (r) => (
-      <span className="font-mono text-sm tabular-nums">
-        {formatMoney(Math.round(parseFloat(r.totalDebit) * 100))}
-      </span>
-    ),
-  },
-];
 
 const BUCKET_COLORS = [
   "bg-emerald-500",
@@ -250,11 +168,77 @@ function KpiItem({ label, value, good }: { label: string; value: string; good: b
 }
 
 export default function DashboardPage() {
+  const t = useTranslations("Dashboard");
+  const locale = useLocale();
   const router = useRouter();
   const { open: openDrawer } = useCreateDrawer();
   const { data: session } = useSession();
   const firstName = session?.user?.name?.split(" ")[0] || "";
-  const [greeting] = useState(() => pickGreeting());
+  const greeting = useMemo(
+    () =>
+      pickGreeting({
+        morning: t.raw("greetings.morning") as string[],
+        afternoon: t.raw("greetings.afternoon") as string[],
+        evening: t.raw("greetings.evening") as string[],
+        anytime: t.raw("greetings.anytime") as string[],
+        days: t.raw("greetings.days") as string[],
+        happyDay: (day: string) => t("greetings.happyDay", { day }),
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [locale]
+  );
+  const columns: Column<Entry>[] = [
+    {
+      key: "number",
+      header: t("recentEntries.columnNumber"),
+      className: "w-16",
+      render: (r) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {r.entryNumber}
+        </span>
+      ),
+    },
+    {
+      key: "date",
+      header: t("recentEntries.columnDate"),
+      className: "w-28",
+      render: (r) => <span className="text-sm">{r.date}</span>,
+    },
+    {
+      key: "description",
+      header: t("recentEntries.columnDescription"),
+      render: (r) => <span className="text-sm font-medium">{r.description}</span>,
+    },
+    {
+      key: "status",
+      header: t("recentEntries.columnStatus"),
+      className: "w-24",
+      render: (r) => (
+        <Badge
+          variant="outline"
+          className={
+            r.status === "posted"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400"
+              : r.status === "void"
+              ? "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400"
+              : ""
+          }
+        >
+          {r.status}
+        </Badge>
+      ),
+    },
+    {
+      key: "amount",
+      header: t("recentEntries.columnAmount"),
+      className: "w-28 text-right",
+      render: (r) => (
+        <span className="font-mono text-sm tabular-nums">
+          {formatMoney(Math.round(parseFloat(r.totalDebit) * 100))}
+        </span>
+      ),
+    },
+  ];
   const [entries, setEntries] = useState<Entry[]>([]);
   const [pnl, setPnl] = useState<PnLData>({
     totalRevenue: 0,
@@ -300,7 +284,7 @@ export default function DashboardPage() {
   const org = useOrganization();
   const currency = org?.defaultCurrency ?? "USD";
 
-  useDocumentTitle("Dashboard \u00B7 Overview");
+  useDocumentTitle(t("documentTitle"));
 
   useEffect(() => {
     const id = localStorage.getItem("activeOrgId");
@@ -340,7 +324,7 @@ export default function DashboardPage() {
         if (apData?.buckets) setPayables(apData);
       })
       .then(() => devDelay())
-      .catch(() => setError("Failed to load dashboard data. Please check your connection."))
+      .catch(() => setError(t("errorLoad")))
       .finally(() => setLoading(false));
 
     // Load sparkline trends in background
@@ -492,8 +476,7 @@ export default function DashboardPage() {
                   {greeting}{firstName ? `, ${firstName}` : ""}
                 </h2>
                 <p className="mt-1 max-w-lg text-sm text-emerald-950/70">
-                  Here is your financial overview. Jump into any section to get
-                  started or continue where you left off.
+                  {t("tagline")}
                 </p>
                 <div className="mt-5 flex flex-wrap gap-2">
                   <Button
@@ -502,7 +485,7 @@ export default function DashboardPage() {
                     onClick={() => router.push("/accounting/accounts")}
                   >
                     <Landmark className="mr-1.5 size-3.5" />
-                    Accounts
+                    {t("quickActions.accounts")}
                   </Button>
                   <Button
                     size="sm"
@@ -510,7 +493,7 @@ export default function DashboardPage() {
                     onClick={() => openDrawer("entry")}
                   >
                     <BookOpen className="mr-1.5 size-3.5" />
-                    New entry
+                    {t("quickActions.newEntry")}
                   </Button>
                   <Button
                     size="sm"
@@ -518,7 +501,7 @@ export default function DashboardPage() {
                     onClick={() => openDrawer("invoice")}
                   >
                     <FileText className="mr-1.5 size-3.5" />
-                    New invoice
+                    {t("quickActions.newInvoice")}
                   </Button>
                   <Button
                     size="sm"
@@ -526,7 +509,7 @@ export default function DashboardPage() {
                     onClick={() => router.push("/contacts")}
                   >
                     <Users className="mr-1.5 size-3.5" />
-                    Contacts
+                    {t("quickActions.contacts")}
                   </Button>
                 </div>
               </div>
@@ -538,38 +521,38 @@ export default function DashboardPage() {
                 <button
                   onClick={dismissOnboarding}
                   disabled={dismissingOnboarding}
-                  aria-label="Dismiss getting started"
+                  aria-label={t("onboarding.dismissAria")}
                   className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
                 >
                   <X className="size-4" />
                 </button>
                 <div className="flex items-center gap-2">
                   <Rocket className="size-4 text-emerald-600" />
-                  <h3 className="text-sm font-semibold">Getting started</h3>
+                  <h3 className="text-sm font-semibold">{t("onboarding.heading")}</h3>
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  A few quick steps to set up your books. Tackle them in any order.
+                  {t("onboarding.subtext")}
                 </p>
                 <div className="mt-4 grid gap-2 sm:grid-cols-2">
                   {[
                     {
-                      label: "Add a bank account",
-                      desc: "Connect or add the account you bank with",
+                      label: t("onboarding.bankAccountLabel"),
+                      desc: t("onboarding.bankAccountDesc"),
                       href: "/accounting/banking",
                     },
                     {
-                      label: "Set opening balances",
-                      desc: "Enter what you had when you started",
+                      label: t("onboarding.openingBalancesLabel"),
+                      desc: t("onboarding.openingBalancesDesc"),
                       href: "/accounting/opening-balances",
                     },
                     {
-                      label: "Set up tax",
-                      desc: "Choose the tax rates you charge and pay",
+                      label: t("onboarding.taxLabel"),
+                      desc: t("onboarding.taxDesc"),
                       href: "/tax",
                     },
                     {
-                      label: "Create your first invoice",
-                      desc: "Bill a customer and get paid",
+                      label: t("onboarding.firstInvoiceLabel"),
+                      desc: t("onboarding.firstInvoiceDesc"),
                       href: "/sales",
                     },
                   ].map((step) => (
@@ -594,7 +577,7 @@ export default function DashboardPage() {
                     onClick={dismissOnboarding}
                     disabled={dismissingOnboarding}
                   >
-                    {dismissingOnboarding ? "Saving…" : "Dismiss / All done"}
+                    {dismissingOnboarding ? t("onboarding.saving") : t("onboarding.dismiss")}
                   </Button>
                 </div>
               </div>
@@ -606,7 +589,7 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="size-4 text-amber-600" />
                   <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
-                    Budget Alerts
+                    {t("budgetAlerts.heading")}
                   </p>
                 </div>
                 <div className="space-y-1">
@@ -626,7 +609,11 @@ export default function DashboardPage() {
                             : "text-amber-700 dark:text-amber-400"
                         )}
                       >
-                        {alert.pct}% used ({formatMoney(alert.actual)} / {formatMoney(alert.budgeted)})
+                        {t("budgetAlerts.used", {
+                          pct: alert.pct,
+                          actual: formatMoney(alert.actual),
+                          budgeted: formatMoney(alert.budgeted),
+                        })}
                       </span>
                     </div>
                   ))}
@@ -637,36 +624,36 @@ export default function DashboardPage() {
             {/* Section B: Stat Cards */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               <StatCard
-                title="Revenue"
+                title={t("stats.revenue")}
                 value={formatMoney(pnl.totalRevenue, currency)}
                 icon={TrendingUp}
                 sparklineData={sparklines.revenue.length > 1 ? sparklines.revenue : undefined}
               />
               <StatCard
-                title="Expenses"
+                title={t("stats.expenses")}
                 value={formatMoney(pnl.totalExpenses, currency)}
                 icon={TrendingDown}
                 sparklineData={sparklines.expenses.length > 1 ? sparklines.expenses : undefined}
               />
               <StatCard
-                title="Net Income"
+                title={t("stats.netIncome")}
                 value={formatMoney(pnl.netIncome, currency)}
                 icon={DollarSign}
                 changeType={pnl.netIncome >= 0 ? "positive" : "negative"}
                 sparklineData={sparklines.netIncome.length > 1 ? sparklines.netIncome : undefined}
               />
               <StatCard
-                title="Receivables"
+                title={t("stats.receivables")}
                 value={formatMoney(receivables.grandTotal, currency)}
                 icon={ArrowDownLeft}
-                change={`${receivablesCount} outstanding`}
+                change={t("stats.outstanding", { count: receivablesCount })}
                 changeType="neutral"
               />
               <StatCard
-                title="Payables"
+                title={t("stats.payables")}
                 value={formatMoney(payables.grandTotal, currency)}
                 icon={ArrowUpRight}
-                change={`${payablesCount} outstanding`}
+                change={t("stats.outstanding", { count: payablesCount })}
                 changeType="neutral"
               />
             </div>
@@ -676,12 +663,12 @@ export default function DashboardPage() {
               {/* Revenue vs Expenses */}
               <div className="rounded-lg border bg-card p-5">
                 <h3 className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-                  Revenue vs Expenses
+                  {t("revenueVsExpenses.heading")}
                 </h3>
                 <div className="mt-4 space-y-3">
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Revenue</span>
+                      <span className="text-muted-foreground">{t("revenueVsExpenses.revenue")}</span>
                       <span className="font-mono text-sm tabular-nums font-medium">
                         {formatMoney(pnl.totalRevenue)}
                       </span>
@@ -695,7 +682,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Expenses</span>
+                      <span className="text-muted-foreground">{t("revenueVsExpenses.expenses")}</span>
                       <span className="font-mono text-sm tabular-nums font-medium">
                         {formatMoney(pnl.totalExpenses)}
                       </span>
@@ -709,7 +696,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="flex items-center justify-between border-t pt-3">
                     <span className="text-sm text-muted-foreground">
-                      Net Income
+                      {t("revenueVsExpenses.netIncome")}
                     </span>
                     <span
                       className={cn(
@@ -726,7 +713,7 @@ export default function DashboardPage() {
                 {topExpenses.length > 0 && (
                   <div className="mt-4 border-t pt-4">
                     <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground mb-2">
-                      Top Expenses
+                      {t("revenueVsExpenses.topExpenses")}
                     </p>
                     <div className="space-y-2">
                       {topExpenses.map((exp) => (
@@ -750,16 +737,16 @@ export default function DashboardPage() {
               {/* Aging Summary */}
               <div className="rounded-lg border bg-card p-5">
                 <h3 className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-                  Aging Summary
+                  {t("agingSummary.heading")}
                 </h3>
                 <div className="mt-4 grid grid-cols-2 gap-6">
                   <AgingColumn
-                    title="Receivables"
+                    title={t("agingSummary.receivables")}
                     total={receivables.grandTotal}
                     buckets={receivables.buckets}
                   />
                   <AgingColumn
-                    title="Payables"
+                    title={t("agingSummary.payables")}
                     total={payables.grandTotal}
                     buckets={payables.buckets}
                   />
@@ -775,28 +762,28 @@ export default function DashboardPage() {
               <div className="rounded-lg border bg-card p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-                    Financial KPIs
+                    {t("financialKpis.heading")}
                   </h3>
                   <Gauge className="size-4 text-muted-foreground/50" />
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
                   {ratios.currentRatio !== null && (
-                    <KpiItem label="Current Ratio" value={`${ratios.currentRatio}x`} good={ratios.currentRatio >= 1} />
+                    <KpiItem label={t("financialKpis.currentRatio")} value={`${ratios.currentRatio}x`} good={ratios.currentRatio >= 1} />
                   )}
                   {ratios.quickRatio !== null && (
-                    <KpiItem label="Quick Ratio" value={`${ratios.quickRatio}x`} good={ratios.quickRatio >= 1} />
+                    <KpiItem label={t("financialKpis.quickRatio")} value={`${ratios.quickRatio}x`} good={ratios.quickRatio >= 1} />
                   )}
                   {ratios.grossMargin !== null && (
-                    <KpiItem label="Gross Margin" value={`${ratios.grossMargin}%`} good={ratios.grossMargin > 0} />
+                    <KpiItem label={t("financialKpis.grossMargin")} value={`${ratios.grossMargin}%`} good={ratios.grossMargin > 0} />
                   )}
                   {ratios.netMargin !== null && (
-                    <KpiItem label="Net Margin" value={`${ratios.netMargin}%`} good={ratios.netMargin > 0} />
+                    <KpiItem label={t("financialKpis.netMargin")} value={`${ratios.netMargin}%`} good={ratios.netMargin > 0} />
                   )}
                   {ratios.dso !== null && (
-                    <KpiItem label="DSO" value={`${ratios.dso}d`} good={ratios.dso <= 45} />
+                    <KpiItem label={t("financialKpis.dso")} value={`${ratios.dso}d`} good={ratios.dso <= 45} />
                   )}
                   {ratios.dpo !== null && (
-                    <KpiItem label="DPO" value={`${ratios.dpo}d`} good={ratios.dpo <= 60} />
+                    <KpiItem label={t("financialKpis.dpo")} value={`${ratios.dpo}d`} good={ratios.dpo <= 60} />
                   )}
                 </div>
               </div>
@@ -810,9 +797,9 @@ export default function DashboardPage() {
                     onClick={() => router.push("/sales")}
                     className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-3 text-left transition-colors hover:bg-red-100 dark:hover:bg-red-950/50"
                   >
-                    <p className="text-xs font-medium text-red-800 dark:text-red-300">Overdue Invoices</p>
+                    <p className="text-xs font-medium text-red-800 dark:text-red-300">{t("alerts.overdueInvoices")}</p>
                     <p className="text-lg font-bold font-mono tabular-nums text-red-600 mt-0.5">{actionAlerts.overdueInvoices.count}</p>
-                    <p className="text-[11px] text-red-600/70 font-mono tabular-nums">{formatMoney(actionAlerts.overdueInvoices.total)} outstanding</p>
+                    <p className="text-[11px] text-red-600/70 font-mono tabular-nums">{t("alerts.overdueInvoicesOutstanding", { amount: formatMoney(actionAlerts.overdueInvoices.total) })}</p>
                   </button>
                 )}
                 {actionAlerts.overdueBills?.count > 0 && (
@@ -820,9 +807,9 @@ export default function DashboardPage() {
                     onClick={() => router.push("/purchases")}
                     className="rounded-lg border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/30 p-3 text-left transition-colors hover:bg-orange-100 dark:hover:bg-orange-950/50"
                   >
-                    <p className="text-xs font-medium text-orange-800 dark:text-orange-300">Overdue Bills</p>
+                    <p className="text-xs font-medium text-orange-800 dark:text-orange-300">{t("alerts.overdueBills")}</p>
                     <p className="text-lg font-bold font-mono tabular-nums text-orange-600 mt-0.5">{actionAlerts.overdueBills.count}</p>
-                    <p className="text-[11px] text-orange-600/70 font-mono tabular-nums">{formatMoney(actionAlerts.overdueBills.total)} to pay</p>
+                    <p className="text-[11px] text-orange-600/70 font-mono tabular-nums">{t("alerts.overdueBillsToPay", { amount: formatMoney(actionAlerts.overdueBills.total) })}</p>
                   </button>
                 )}
                 {actionAlerts.uncategorizedTransactions > 0 && (
@@ -830,9 +817,9 @@ export default function DashboardPage() {
                     onClick={() => router.push("/accounting/banking")}
                     className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 p-3 text-left transition-colors hover:bg-blue-100 dark:hover:bg-blue-950/50"
                   >
-                    <p className="text-xs font-medium text-blue-800 dark:text-blue-300">Uncategorized Transactions</p>
+                    <p className="text-xs font-medium text-blue-800 dark:text-blue-300">{t("alerts.uncategorizedTransactions")}</p>
                     <p className="text-lg font-bold font-mono tabular-nums text-blue-600 mt-0.5">{actionAlerts.uncategorizedTransactions}</p>
-                    <p className="text-[11px] text-blue-600/70">Need categorization</p>
+                    <p className="text-[11px] text-blue-600/70">{t("alerts.needsCategorization")}</p>
                   </button>
                 )}
                 {actionAlerts.accountsNeedingReconciliation?.length > 0 && (
@@ -840,9 +827,9 @@ export default function DashboardPage() {
                     onClick={() => router.push("/accounting/banking")}
                     className="rounded-lg border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/30 p-3 text-left transition-colors hover:bg-violet-100 dark:hover:bg-violet-950/50"
                   >
-                    <p className="text-xs font-medium text-violet-800 dark:text-violet-300">Needs Reconciliation</p>
+                    <p className="text-xs font-medium text-violet-800 dark:text-violet-300">{t("alerts.needsReconciliation")}</p>
                     <p className="text-lg font-bold font-mono tabular-nums text-violet-600 mt-0.5">{actionAlerts.accountsNeedingReconciliation.length}</p>
-                    <p className="text-[11px] text-violet-600/70">bank account{actionAlerts.accountsNeedingReconciliation.length !== 1 ? "s" : ""}</p>
+                    <p className="text-[11px] text-violet-600/70">{t("alerts.bankAccountCount", { count: actionAlerts.accountsNeedingReconciliation.length })}</p>
                   </button>
                 )}
               </div>
@@ -852,23 +839,23 @@ export default function DashboardPage() {
             <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-[13px] font-semibold">Recent Entries</h2>
+                  <h2 className="text-[13px] font-semibold">{t("recentEntries.heading")}</h2>
                   <Button
                     variant="ghost"
                     size="sm"
                     className="h-7 text-xs text-muted-foreground"
                     onClick={() => router.push("/accounting")}
                   >
-                    View all
+                    {t("recentEntries.viewAll")}
                   </Button>
                 </div>
                 <DataTable
                   columns={columns}
                   data={entries}
                   loading={loading}
-                  emptyMessage="No journal entries yet."
+                  emptyMessage={t("recentEntries.empty")}
                   emptyAction={{
-                    label: "Create your first entry",
+                    label: t("recentEntries.createFirst"),
                     onClick: () => openDrawer("entry"),
                   }}
                   onRowClick={(r) => router.push(`/accounting/${r.id}`)}
