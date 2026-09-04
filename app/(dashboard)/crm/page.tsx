@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useDocumentTitle } from "@/lib/hooks/use-document-title";
 import { motion } from "motion/react";
 import {
@@ -72,29 +73,6 @@ interface Summary {
 
 type SortKey = "value" | "name" | "date" | "probability";
 
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: "value", label: "Value" },
-  { value: "name", label: "Name" },
-  { value: "date", label: "Date" },
-  { value: "probability", label: "Probability" },
-];
-
-const SOURCE_OPTIONS = [
-  { value: "all", label: "All Sources" },
-  { value: "website", label: "Website" },
-  { value: "referral", label: "Referral" },
-  { value: "cold_outreach", label: "Cold Outreach" },
-  { value: "event", label: "Event" },
-  { value: "other", label: "Other" },
-];
-
-const STATUS_OPTIONS = [
-  { value: "all", label: "All Status" },
-  { value: "active", label: "Active" },
-  { value: "won", label: "Won" },
-  { value: "lost", label: "Lost" },
-];
-
 const DEFAULT_STAGES = [
   { id: "lead", name: "Lead", color: "#94a3b8" },
   { id: "qualified", name: "Qualified", color: "#60a5fa" },
@@ -107,6 +85,7 @@ const DEFAULT_STAGES = [
 const PAGE_SIZE = 24;
 
 export default function CRMPage() {
+  const t = useTranslations("CRM");
   const router = useRouter();
   const { open: openDrawer } = useCreateDrawer();
 
@@ -137,7 +116,36 @@ export default function CRMPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState<SortKey>("value");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  useDocumentTitle("CRM · Deals");
+  useDocumentTitle(t("documentTitle"));
+
+  const sortOptions: { value: SortKey; label: string }[] = [
+    { value: "value", label: t("sort.value") },
+    { value: "name", label: t("sort.name") },
+    { value: "date", label: t("sort.date") },
+    { value: "probability", label: t("sort.probability") },
+  ];
+  const sourceOptions = [
+    { value: "all", label: t("source.all") },
+    { value: "website", label: t("source.website") },
+    { value: "referral", label: t("source.referral") },
+    { value: "cold_outreach", label: t("source.cold_outreach") },
+    { value: "event", label: t("source.event") },
+    { value: "other", label: t("source.other") },
+  ];
+  const statusOptions = [
+    { value: "all", label: t("status.all") },
+    { value: "active", label: t("status.active") },
+    { value: "won", label: t("status.won") },
+    { value: "lost", label: t("status.lost") },
+  ];
+  const stageNames: Record<string, string> = {
+    lead: t("stage.lead"),
+    qualified: t("stage.qualified"),
+    proposal: t("stage.proposal"),
+    negotiation: t("stage.negotiation"),
+    closed_won: t("stage.closed_won"),
+    closed_lost: t("stage.closed_lost"),
+  };
 
   function getHeaders() {
     const orgId = localStorage.getItem("activeOrgId") || "";
@@ -170,8 +178,8 @@ export default function CRMPage() {
         setPipelines(pipes);
         setActivePipeline(pipes.find((p: Pipeline) => p.isDefault) || pipes[0] || null);
       })
-      .catch(() => setError("Failed to load pipelines"));
-  }, []);
+      .catch(() => setError(t("loadPipelinesFailed")));
+  }, [t]);
 
   // Fetch deals when filters change
   const fetchDeals = useCallback(
@@ -197,14 +205,14 @@ export default function CRMPage() {
         setHasMore(pageNum * PAGE_SIZE < t);
         setError(null);
       } catch {
-        if (replace) setError("Failed to load deals");
+        if (replace) setError(t("loadDealsFailed"));
       } finally {
         setInitialLoading(false);
         setFiltering(false);
         setLoadingMore(false);
       }
     },
-    [buildParams]
+    [buildParams, t]
   );
 
   // Reset + fetch when filters change
@@ -245,9 +253,13 @@ export default function CRMPage() {
     return () => observer.disconnect();
   }, [hasMore, loadingMore, filtering, initialLoading, page, fetchDeals]);
 
-  const stages = activePipeline?.stages?.length
+  const rawStages = activePipeline?.stages?.length
     ? activePipeline.stages
     : DEFAULT_STAGES;
+  const stages = rawStages.map((stage) => ({
+    ...stage,
+    name: stageNames[stage.id] || stage.name,
+  }));
 
   // Stage distribution from API (full dataset, not paginated)
   const stageDistribution = useMemo(() => {
@@ -276,12 +288,12 @@ export default function CRMPage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to create pipeline");
+        throw new Error(data.error || t("pipelineCreateFailed"));
       }
       window.location.reload();
-      toast.success("Pipeline created");
+      toast.success(t("pipelineCreated"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to set up pipeline");
+      toast.error(err instanceof Error ? err.message : t("pipelineCreateFailed"));
     } finally {
       setSetupLoading(false);
     }
@@ -305,9 +317,9 @@ export default function CRMPage() {
         <div className="pt-12 pb-12 space-y-10">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold tracking-tight">Sales Pipeline</h2>
+              <h2 className="text-lg font-semibold tracking-tight">{t("pipelineTitle")}</h2>
               <p className="mt-1 text-sm text-muted-foreground max-w-md">
-                Track every deal from first contact to closed won. Visualize your pipeline, forecast revenue, and never let an opportunity slip through.
+                {t("pipelineDescription")}
               </p>
             </div>
             <Button
@@ -316,7 +328,7 @@ export default function CRMPage() {
               className="bg-emerald-600 hover:bg-emerald-700 shrink-0"
             >
               <Plus className="mr-2 size-4" />
-              {setupLoading ? "Setting up..." : "Create Pipeline"}
+              {setupLoading ? t("settingUp") : t("setup")}
             </Button>
           </div>
 
@@ -324,7 +336,7 @@ export default function CRMPage() {
             <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
               <div className="bg-muted/30 px-5 py-3 border-b">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Example pipeline
+                  {t("examplePipeline")}
                 </p>
               </div>
               <div className="p-5">
@@ -333,7 +345,7 @@ export default function CRMPage() {
                     <div key={stage.id} className="flex items-center gap-2">
                       <div className="flex items-center gap-1.5">
                         <div className="size-2 rounded-full" style={{ backgroundColor: stage.color, opacity: 0.7 }} />
-                        <span className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">{stage.name}</span>
+                        <span className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">{stageNames[stage.id] || stage.name}</span>
                       </div>
                       {i < 4 && <ArrowRight className="size-3 text-muted-foreground/30 shrink-0" />}
                     </div>
@@ -360,9 +372,9 @@ export default function CRMPage() {
                 </div>
                 <div className="mt-4 h-px bg-border" />
                 <div className="mt-3 flex items-center justify-between">
-                  <p className="text-[11px] text-muted-foreground font-mono tabular-nums">3 deals · $192,500 in pipeline</p>
+                  <p className="text-[11px] text-muted-foreground font-mono tabular-nums">{t("exampleSummary")}</p>
                   <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800">
-                    55% avg. probability
+                    {t("averageProbability")}
                   </Badge>
                 </div>
               </div>
@@ -370,13 +382,13 @@ export default function CRMPage() {
 
             <div className="space-y-3">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                What you can do
+                {t("capabilities")}
               </p>
               {[
-                { title: "Track deals through stages", desc: "Create deals, assign contacts, and drag them through your customizable pipeline stages.", icon: Handshake, color: "border-l-blue-400" },
-                { title: "Forecast revenue", desc: "Set deal values and win probabilities to project expected revenue across your pipeline.", icon: DollarSign, color: "border-l-emerald-400" },
-                { title: "Log every interaction", desc: "Record calls, emails, meetings, and notes so you never lose context on a deal.", icon: Users, color: "border-l-orange-400" },
-                { title: "Analyze performance", desc: "Track conversion rates, deal velocity, and stage distribution at a glance.", icon: BarChart3, color: "border-l-violet-400" },
+                { title: t("trackStages"), desc: t("trackStagesDescription"), icon: Handshake, color: "border-l-blue-400" },
+                { title: t("forecast"), desc: t("forecastDescription"), icon: DollarSign, color: "border-l-emerald-400" },
+                { title: t("interactions"), desc: t("interactionsDescription"), icon: Users, color: "border-l-orange-400" },
+                { title: t("analytics"), desc: t("analyticsDescription"), icon: BarChart3, color: "border-l-violet-400" },
               ].map(({ title, desc, icon: Icon, color }) => (
                 <div key={title} className={`rounded-lg border border-l-[3px] ${color} bg-card px-4 py-3`}>
                   <div className="flex items-center gap-2">
@@ -396,15 +408,15 @@ export default function CRMPage() {
   return (
     <ContentReveal className="space-y-6">
       <PageHeader
-        title="Sales Pipeline"
+        title={t("pipelineTitle")}
         description={
           summary
-            ? `${summary.totalDeals} deal${summary.totalDeals !== 1 ? "s" : ""} · ${formatMoney(summary.activeValue)} in pipeline`
+            ? t("summary", { count: summary.totalDeals, value: formatMoney(summary.activeValue) })
             : undefined
         }
       >
         <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => openDrawer("deal")}>
-          <Plus className="size-3" /> New Deal
+          <Plus className="size-3" /> {t("newDeal")}
         </Button>
       </PageHeader>
 
@@ -414,13 +426,13 @@ export default function CRMPage() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2 text-muted-foreground">
               <BarChart3 className="size-4" />
-              <span className="text-xs font-medium uppercase tracking-wide">Stage Distribution</span>
+              <span className="text-xs font-medium uppercase tracking-wide">{t("stageDistribution")}</span>
             </div>
             <div className="flex items-center gap-4 text-xs text-muted-foreground">
-              <span className="font-mono tabular-nums">{summary.activeCount} active</span>
+              <span className="font-mono tabular-nums">{t("activeCount", { count: summary.activeCount })}</span>
               {summary.wonCount > 0 && (
                 <span className="font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
-                  {summary.wonCount} won · {formatMoney(summary.wonValue)}
+                  {t("wonSummary", { count: summary.wonCount, value: formatMoney(summary.wonValue) })}
                 </span>
               )}
             </div>
@@ -460,7 +472,7 @@ export default function CRMPage() {
       {/* Stage tabs */}
       <div className="flex flex-col gap-3">
         <div className="relative flex items-center gap-1 rounded-lg bg-muted p-1 w-fit overflow-x-auto">
-          {[{ id: "all", name: "All", color: "" }, ...stages.filter((s) => s.id !== "closed_lost")].map((s) => {
+          {[{ id: "all", name: t("all"), color: "" }, ...stages.filter((s) => s.id !== "closed_lost")].map((s) => {
             const isActive = stageFilter === s.id;
             return (
               <button
@@ -492,7 +504,7 @@ export default function CRMPage() {
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder="Search deals, contacts..."
+            placeholder={t("search")}
             loading={search !== debouncedSearch}
           />
 
@@ -502,7 +514,7 @@ export default function CRMPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {SOURCE_OPTIONS.map((opt) => (
+              {sourceOptions.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
               ))}
             </SelectContent>
@@ -513,7 +525,7 @@ export default function CRMPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {STATUS_OPTIONS.map((opt) => (
+              {statusOptions.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
               ))}
             </SelectContent>
@@ -525,7 +537,7 @@ export default function CRMPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {SORT_OPTIONS.map((opt) => (
+              {sortOptions.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
               ))}
             </SelectContent>
@@ -543,7 +555,7 @@ export default function CRMPage() {
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" className="h-8 text-xs gap-1 text-muted-foreground" onClick={clearFilters}>
               <X className="size-3" />
-              Clear
+              {t("clear")}
             </Button>
           )}
         </div>
@@ -552,8 +564,8 @@ export default function CRMPage() {
       {/* Results count */}
       {!filtering && (
         <p className="text-[11px] text-muted-foreground">
-          {total} deal{total !== 1 ? "s" : ""}
-          {hasActiveFilters && " matching filters"}
+          {t("results", { count: total })}
+          {hasActiveFilters && ` ${t("matchingFilters")}`}
         </p>
       )}
 
@@ -565,13 +577,13 @@ export default function CRMPage() {
           <div className="mx-auto flex size-10 items-center justify-center rounded-xl bg-muted mb-3">
             <Handshake className="size-5 text-muted-foreground" />
           </div>
-          <p className="text-sm font-medium">No deals found</p>
+          <p className="text-sm font-medium">{t("noDeals")}</p>
           <p className="text-xs text-muted-foreground mt-1">
-            {hasActiveFilters ? "Try different filters" : "Create your first deal to get started"}
+            {hasActiveFilters ? t("tryFilters") : t("emptyDescription")}
           </p>
           {hasActiveFilters && (
             <Button variant="outline" size="sm" className="mt-3 h-7 text-xs" onClick={clearFilters}>
-              Clear filters
+              {t("clearFilters")}
             </Button>
           )}
         </div>
@@ -609,7 +621,7 @@ export default function CRMPage() {
                       }}
                     >
                       <span className="size-1.5 rounded-full" style={{ backgroundColor: stage.color }} />
-                      {isWon ? "Won" : isLost ? "Lost" : stage.name}
+                      {isWon ? t("status.won") : isLost ? t("status.lost") : stage.name}
                     </Badge>
                   </div>
 
@@ -646,7 +658,9 @@ export default function CRMPage() {
                         })}
                       </span>
                     )}
-                    {deal.source && <span className="capitalize">{deal.source.replace("_", " ")}</span>}
+                    {deal.source && (
+                      <span>{sourceOptions.find((option) => option.value === deal.source)?.label || deal.source.replace("_", " ")}</span>
+                    )}
                     {deal.assignedUser && (
                       <span className="ml-auto truncate max-w-[100px]">{deal.assignedUser.name}</span>
                     )}
@@ -660,7 +674,7 @@ export default function CRMPage() {
           <div ref={sentinelRef} className="flex items-center justify-center py-4">
             {loadingMore && <Loader2 className="size-5 text-muted-foreground animate-spin" />}
             {!hasMore && deals.length > 0 && (
-              <p className="text-xs text-muted-foreground/50">No more deals</p>
+              <p className="text-xs text-muted-foreground/50">{t("noMore")}</p>
             )}
           </div>
         </>

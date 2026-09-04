@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { motion, AnimatePresence, MotionConfig } from "motion/react";
 import {
   Package,
@@ -80,18 +81,10 @@ interface InventoryItem {
 type FilterTab = "all" | "low_stock" | "active" | "inactive";
 type SortKey = "name" | "code" | "quantity" | "salePrice" | "purchasePrice" | "createdAt";
 
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: "createdAt", label: "Newest" },
-  { value: "name", label: "Name" },
-  { value: "code", label: "Code" },
-  { value: "quantity", label: "Quantity" },
-  { value: "salePrice", label: "Sale Price" },
-  { value: "purchasePrice", label: "Cost" },
-];
-
 const PAGE_SIZE = 30;
 
 export default function InventoryPage() {
+  const t = useTranslations("Inventory.items");
   const router = useRouter();
   const { open: openDrawer } = useCreateDrawer();
   const { confirm, dialog: confirmDialog } = useConfirm();
@@ -128,7 +121,16 @@ export default function InventoryPage() {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const pageRef = useRef(1);
-  useDocumentTitle("Inventory · Products");
+  useDocumentTitle(t("documentTitle"));
+
+  const sortOptions: { value: SortKey; label: string }[] = [
+    { value: "createdAt", label: t("sort.newest") },
+    { value: "name", label: t("sort.name") },
+    { value: "code", label: t("sort.code") },
+    { value: "quantity", label: t("sort.quantity") },
+    { value: "salePrice", label: t("sort.salePrice") },
+    { value: "purchasePrice", label: t("sort.cost") },
+  ];
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -280,10 +282,10 @@ export default function InventoryPage() {
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed");
+        throw new Error(data.error || t("bulkFailed"));
       }
       const data = await res.json();
-      toast.success(`${data.affected} item${data.affected !== 1 ? "s" : ""} updated`);
+      toast.success(t("bulkUpdated", { count: data.affected }));
       setSelected(new Set());
       // Refresh
       pageRef.current = 1;
@@ -297,7 +299,7 @@ export default function InventoryPage() {
       if (refreshData.categories) setCategories(refreshData.categories);
       if (refreshData.summary) setSummary(refreshData.summary);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Bulk action failed");
+      toast.error(err instanceof Error ? err.message : t("bulkFailed"));
     } finally {
       setBulkLoading(false);
     }
@@ -305,16 +307,26 @@ export default function InventoryPage() {
 
   async function handleBulkDelete() {
     const confirmed = await confirm({
-      title: `Delete ${selectionCount} item${selectionCount !== 1 ? "s" : ""}?`,
-      description: "This action cannot be undone.",
-      confirmLabel: "Delete",
+      title: t("deleteTitle", { count: selectionCount }),
+      description: t("deleteDescription"),
+      confirmLabel: t("delete"),
       destructive: true,
     });
     if (confirmed) await bulkAction("delete");
   }
 
   function exportCsv() {
-    const headers = ["Code", "Name", "Category", "SKU", "Quantity", "Reorder Point", "Purchase Price", "Sale Price", "Status"];
+    const headers = [
+      t("sort.code"),
+      t("sort.name"),
+      t("csvHeaders.category"),
+      t("csvHeaders.sku"),
+      t("sort.quantity"),
+      t("csvHeaders.reorderPoint"),
+      t("csvHeaders.purchasePrice"),
+      t("sort.salePrice"),
+      t("csvHeaders.status"),
+    ];
     const rows = items.map((i) => [
       i.code,
       i.name,
@@ -324,7 +336,7 @@ export default function InventoryPage() {
       i.reorderPoint,
       (i.purchasePrice / 100).toFixed(2),
       (i.salePrice / 100).toFixed(2),
-      i.isActive ? "Active" : "Inactive",
+      i.isActive ? t("active") : t("inactive"),
     ]);
     const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -334,7 +346,7 @@ export default function InventoryPage() {
     a.download = `inventory-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success("CSV exported");
+    toast.success(t("exported"));
   }
 
   async function handleImport() {
@@ -350,9 +362,9 @@ export default function InventoryPage() {
         body: formData,
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Import failed");
+      if (!res.ok) throw new Error(data.error || t("importFailed"));
       setImportResult(data);
-      toast.success(`Imported: ${data.created} created, ${data.updated} updated`);
+      toast.success(t("imported", { created: data.created, updated: data.updated }));
       // Refresh the list
       pageRef.current = 1;
       const refreshRes = await fetch(buildUrl(1), { headers: { "x-organization-id": orgId } });
@@ -365,7 +377,7 @@ export default function InventoryPage() {
       if (refreshData.categories) setCategories(refreshData.categories);
       if (refreshData.summary) setSummary(refreshData.summary);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Import failed");
+      toast.error(err instanceof Error ? err.message : t("importFailed"));
     } finally {
       setImportLoading(false);
     }
@@ -384,11 +396,11 @@ export default function InventoryPage() {
       <ContentReveal>
         <EmptyState
           icon={Package}
-          title="No inventory items yet"
-          description="Add your first product or item to start tracking inventory."
+          title={t("emptyTitle")}
+          description={t("emptyDescription")}
         >
           <Button onClick={() => openDrawer("inventory")} className="bg-emerald-600 hover:bg-emerald-700">
-            New Item
+            {t("newItem")}
           </Button>
         </EmptyState>
       </ContentReveal>
@@ -402,14 +414,14 @@ export default function InventoryPage() {
         <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Package className="size-3.5" />
-            <span className="text-[11px] font-medium uppercase tracking-wide">Total Items</span>
+            <span className="text-[11px] font-medium uppercase tracking-wide">{t("totalItems")}</span>
           </div>
           <p className="mt-2 text-2xl font-bold font-mono tabular-nums truncate">{summary.totalItems}</p>
         </div>
         <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
             <DollarSign className="size-3.5" />
-            <span className="text-[11px] font-medium uppercase tracking-wide">Value of stock</span>
+            <span className="text-[11px] font-medium uppercase tracking-wide">{t("stockValue")}</span>
           </div>
           <p className="mt-2 text-2xl font-bold font-mono tabular-nums truncate">{formatMoney(summary.totalValue)}</p>
         </div>
@@ -419,7 +431,7 @@ export default function InventoryPage() {
         >
           <div className="flex items-center gap-2 text-muted-foreground">
             <AlertTriangle className={cn("size-3.5", summary.lowStockCount > 0 && "text-amber-500")} />
-            <span className="text-[11px] font-medium uppercase tracking-wide">Running low</span>
+            <span className="text-[11px] font-medium uppercase tracking-wide">{t("runningLow")}</span>
           </div>
           <p className={cn(
             "mt-2 text-2xl font-bold font-mono tabular-nums truncate",
@@ -431,7 +443,7 @@ export default function InventoryPage() {
         <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
             <TrendingUp className="size-3.5" />
-            <span className="text-[11px] font-medium uppercase tracking-wide">Avg. profit margin</span>
+            <span className="text-[11px] font-medium uppercase tracking-wide">{t("averageMargin")}</span>
           </div>
           <p className="mt-2 text-2xl font-bold font-mono tabular-nums truncate">
             {summary.avgMargin > 0 ? `${summary.avgMargin.toFixed(1)}%` : "-"}
@@ -443,15 +455,15 @@ export default function InventoryPage() {
       {chartData.length > 0 && (
         <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium">Stock Movements</p>
+            <p className="text-sm font-medium">{t("movements")}</p>
             <select
               value={chartPeriod}
               onChange={(e) => setChartPeriod(e.target.value)}
               className="rounded-md border bg-background px-2 py-1 text-xs"
             >
-              <option value="30d">30 days</option>
-              <option value="90d">90 days</option>
-              <option value="12m">12 months</option>
+              <option value="30d">{t("period30Days")}</option>
+              <option value="90d">{t("period90Days")}</option>
+              <option value="12m">{t("period12Months")}</option>
             </select>
           </div>
           <ResponsiveContainer width="100%" height={200}>
@@ -471,8 +483,8 @@ export default function InventoryPage() {
               <YAxis tick={{ fontSize: 11 }} className="text-muted-foreground" />
               <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Area type="monotone" dataKey="in" name="In" stroke="#10b981" fill="url(#inGrad)" strokeWidth={1.5} />
-              <Area type="monotone" dataKey="out" name="Out" stroke="#ef4444" fill="url(#outGrad)" strokeWidth={1.5} />
+              <Area type="monotone" dataKey="in" name={t("movementIn")} stroke="#10b981" fill="url(#inGrad)" strokeWidth={1.5} />
+              <Area type="monotone" dataKey="out" name={t("movementOut")} stroke="#ef4444" fill="url(#outGrad)" strokeWidth={1.5} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -497,7 +509,7 @@ export default function InventoryPage() {
                   onCheckedChange={toggleSelectAll}
                 />
                 <span className="text-sm font-medium">
-                  {selectionCount > 0 ? `${selectionCount} selected` : "Select items"}
+                  {selectionCount > 0 ? t("selected", { count: selectionCount }) : t("selectItems")}
                 </span>
               </div>
 
@@ -510,20 +522,20 @@ export default function InventoryPage() {
                     transition={{ duration: 0.2 }}
                     className="flex items-center gap-2 flex-wrap"
                   >
-                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => bulkAction("set_active")} disabled={bulkLoading} title="Show these items in lists and pickers">
-                      <Power className="size-3 mr-1.5" />Show
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => bulkAction("set_active")} disabled={bulkLoading} title={t("showHelp")}>
+                      <Power className="size-3 mr-1.5" />{t("show")}
                     </Button>
-                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => bulkAction("set_inactive")} disabled={bulkLoading} title="Hide these items from lists and pickers">
-                      <PowerOff className="size-3 mr-1.5" />Hide
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => bulkAction("set_inactive")} disabled={bulkLoading} title={t("hideHelp")}>
+                      <PowerOff className="size-3 mr-1.5" />{t("hide")}
                     </Button>
                     <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setBulkCategoryOpen(true)} disabled={bulkLoading}>
-                      <Tag className="size-3 mr-1.5" />Category
+                      <Tag className="size-3 mr-1.5" />{t("category")}
                     </Button>
-                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setBulkAdjustOpen(true)} disabled={bulkLoading} title="Add or remove units for the selected items">
-                      <ArrowUpDown className="size-3 mr-1.5" />Change count
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setBulkAdjustOpen(true)} disabled={bulkLoading} title={t("changeCountHelp")}>
+                      <ArrowUpDown className="size-3 mr-1.5" />{t("changeCount")}
                     </Button>
                     <Button size="sm" variant="outline" className="h-7 text-xs text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30" onClick={handleBulkDelete} disabled={bulkLoading}>
-                      <Trash2 className="size-3 mr-1.5" />Delete
+                      <Trash2 className="size-3 mr-1.5" />{t("delete")}
                     </Button>
                     {bulkLoading && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
                   </motion.div>
@@ -536,7 +548,7 @@ export default function InventoryPage() {
                 className="h-7 text-xs"
                 onClick={() => { setSelectMode(false); setSelected(new Set()); }}
               >
-                Done
+                {t("done")}
               </Button>
             </motion.div>
           ) : (
@@ -550,24 +562,24 @@ export default function InventoryPage() {
             >
               <Tabs value={tab} onValueChange={(v) => setTab(v as FilterTab)}>
                 <TabsList>
-                  <TabsTrigger value="all">All</TabsTrigger>
-                  <TabsTrigger value="low_stock">Running low</TabsTrigger>
-                  <TabsTrigger value="active">Shown</TabsTrigger>
-                  <TabsTrigger value="inactive">Hidden</TabsTrigger>
+                  <TabsTrigger value="all">{t("all")}</TabsTrigger>
+                  <TabsTrigger value="low_stock">{t("runningLow")}</TabsTrigger>
+                  <TabsTrigger value="active">{t("shown")}</TabsTrigger>
+                  <TabsTrigger value="inactive">{t("hidden")}</TabsTrigger>
                 </TabsList>
               </Tabs>
 
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setSelectMode(true)}>
-                  Select
+                  {t("select")}
                 </Button>
                 <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setImportOpen(true)}>
                   <Upload className="size-3" />
-                  <span className="hidden sm:inline">Import</span>
+                  <span className="hidden sm:inline">{t("import")}</span>
                 </Button>
                 <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={exportCsv}>
                   <Download className="size-3" />
-                  <span className="hidden sm:inline">Export</span>
+                  <span className="hidden sm:inline">{t("export")}</span>
                 </Button>
               </div>
             </motion.div>
@@ -580,7 +592,7 @@ export default function InventoryPage() {
             <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               ref={searchRef}
-              placeholder="Search by name, code, or SKU..."
+              placeholder={t("search")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 pr-8 h-8 text-sm"
@@ -599,7 +611,7 @@ export default function InventoryPage() {
             <CategoryPicker
               value={categoryFilter}
               onChange={setCategoryFilter}
-              placeholder="All Categories"
+              placeholder={t("allCategories")}
               triggerClassName="h-8 text-xs"
             />
           </div>
@@ -610,7 +622,7 @@ export default function InventoryPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {SORT_OPTIONS.map((opt) => (
+              {sortOptions.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
               ))}
             </SelectContent>
@@ -625,7 +637,7 @@ export default function InventoryPage() {
       {/* Item list */}
       {refetching || pendingSearch ? (
         <div className="flex items-center justify-center py-20">
-          <div className="brand-loader" aria-label="Loading">
+          <div className="brand-loader" aria-label={t("loading")}>
             <div className="brand-loader-circle brand-loader-circle-1" />
             <div className="brand-loader-circle brand-loader-circle-2" />
           </div>
@@ -636,7 +648,7 @@ export default function InventoryPage() {
             {tab === "low_stock" ? <AlertTriangle className="size-5 text-muted-foreground" /> : <Archive className="size-5 text-muted-foreground" />}
           </div>
           <p className="text-sm font-medium text-muted-foreground">
-            {debouncedSearch ? `No items match "${debouncedSearch}"` : "No items found"}
+            {debouncedSearch ? t("noSearchMatches", { search: debouncedSearch }) : t("notFound")}
           </p>
         </div>
       ) : (
@@ -698,10 +710,10 @@ export default function InventoryPage() {
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium truncate">{item.name}</p>
                       {isLow && (
-                        <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px] px-1.5 py-0" title="At or below your reorder level">Running low</Badge>
+                        <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px] px-1.5 py-0" title={t("lowStockHelp")}>{t("runningLow")}</Badge>
                       )}
                       {!item.isActive && (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0" title="Hidden from lists and pickers">Hidden</Badge>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0" title={t("hiddenHelp")}>{t("hidden")}</Badge>
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate">
@@ -730,13 +742,13 @@ export default function InventoryPage() {
                 {/* Prices */}
                 <div className="hidden md:flex flex-col items-end gap-0.5 w-24">
                   <span className="text-xs font-mono tabular-nums text-emerald-600 dark:text-emerald-400">{formatMoney(item.salePrice)}</span>
-                  <span className="text-[11px] font-mono tabular-nums text-muted-foreground">Cost {formatMoney(item.purchasePrice)}</span>
+                  <span className="text-[11px] font-mono tabular-nums text-muted-foreground">{t("cost", { amount: formatMoney(item.purchasePrice) })}</span>
                 </div>
 
                 {/* Value */}
                 <div className="hidden lg:block text-right w-24">
                   <p className="text-xs font-mono tabular-nums font-medium">{formatMoney(item.quantityOnHand * item.purchasePrice)}</p>
-                  <p className="text-[11px] text-muted-foreground">value</p>
+                  <p className="text-[11px] text-muted-foreground">{t("value")}</p>
                 </div>
 
                 <div className={cn(
@@ -752,7 +764,7 @@ export default function InventoryPage() {
           {!hasMore && items.length > 0 && (
             <div className="py-3 text-center">
               <span className="text-[11px] text-muted-foreground">
-                Showing all {items.length} item{items.length !== 1 ? "s" : ""}
+                {t("showingAll", { count: items.length })}
               </span>
             </div>
           )}
@@ -773,15 +785,15 @@ export default function InventoryPage() {
       {/* Bulk set category sheet */}
       <Sheet open={bulkCategoryOpen} onOpenChange={setBulkCategoryOpen}>
         <SheetContent>
-          <SheetHeader><SheetTitle>Set Category</SheetTitle></SheetHeader>
+          <SheetHeader><SheetTitle>{t("setCategory")}</SheetTitle></SheetHeader>
           <div className="space-y-4 px-4">
-            <p className="text-sm text-muted-foreground">Set category for {selectionCount} selected item{selectionCount !== 1 ? "s" : ""}.</p>
+            <p className="text-sm text-muted-foreground">{t("setCategoryDescription", { count: selectionCount })}</p>
             <div className="space-y-2">
-              <Label>Category</Label>
+              <Label>{t("category")}</Label>
               <Input
                 value={bulkCategory}
                 onChange={(e) => setBulkCategory(e.target.value)}
-                placeholder="e.g. Electronics, Office"
+                placeholder={t("categoryPlaceholder")}
               />
               {categories.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-2">
@@ -802,7 +814,7 @@ export default function InventoryPage() {
             </div>
           </div>
           <SheetFooter>
-            <Button variant="outline" onClick={() => setBulkCategoryOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setBulkCategoryOpen(false)}>{t("cancel")}</Button>
             <Button
               onClick={async () => {
                 await bulkAction("set_category", { category: bulkCategory });
@@ -812,7 +824,7 @@ export default function InventoryPage() {
               disabled={bulkLoading}
               className="bg-emerald-600 hover:bg-emerald-700"
             >
-              {bulkLoading ? "Saving..." : "Apply"}
+              {bulkLoading ? t("saving") : t("apply")}
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -821,33 +833,33 @@ export default function InventoryPage() {
       {/* Bulk adjust stock sheet */}
       <Sheet open={bulkAdjustOpen} onOpenChange={setBulkAdjustOpen}>
         <SheetContent>
-          <SheetHeader><SheetTitle>Change the count</SheetTitle></SheetHeader>
+          <SheetHeader><SheetTitle>{t("changeCount")}</SheetTitle></SheetHeader>
           <div className="space-y-4 px-4">
-            <p className="text-sm text-muted-foreground">Add or remove the same number of units for {selectionCount} selected item{selectionCount !== 1 ? "s" : ""}.</p>
+            <p className="text-sm text-muted-foreground">{t("changeCountDescription", { count: selectionCount })}</p>
             <div className="space-y-2">
-              <Label>Add or remove units</Label>
+              <Label>{t("adjustment")}</Label>
               <Input
                 type="number"
                 value={bulkAdjustment}
                 onChange={(e) => setBulkAdjustment(e.target.value)}
-                placeholder="e.g. 10 to add, -5 to remove"
+                placeholder={t("adjustmentPlaceholder")}
               />
             </div>
             <div className="space-y-2">
-              <Label>Reason</Label>
+              <Label>{t("reason")}</Label>
               <Input
                 value={bulkAdjustReason}
                 onChange={(e) => setBulkAdjustReason(e.target.value)}
-                placeholder="e.g. Stock count, breakage, found extra"
+                placeholder={t("reasonPlaceholder")}
               />
             </div>
           </div>
           <SheetFooter>
-            <Button variant="outline" onClick={() => setBulkAdjustOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setBulkAdjustOpen(false)}>{t("cancel")}</Button>
             <Button
               onClick={async () => {
                 const adj = parseInt(bulkAdjustment);
-                if (!adj) { toast.error("Enter how many units to add or remove"); return; }
+                if (!adj) { toast.error(t("adjustmentRequired")); return; }
                 await bulkAction("adjust_stock", { adjustment: adj, reason: bulkAdjustReason });
                 setBulkAdjustOpen(false);
                 setBulkAdjustment("");
@@ -856,7 +868,7 @@ export default function InventoryPage() {
               disabled={bulkLoading}
               className="bg-emerald-600 hover:bg-emerald-700"
             >
-              {bulkLoading ? "Saving..." : "Save new count"}
+              {bulkLoading ? t("saving") : t("saveCount")}
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -865,13 +877,13 @@ export default function InventoryPage() {
       {/* Import CSV sheet */}
       <Sheet open={importOpen} onOpenChange={setImportOpen}>
         <SheetContent>
-          <SheetHeader><SheetTitle>Import Inventory</SheetTitle></SheetHeader>
+          <SheetHeader><SheetTitle>{t("importTitle")}</SheetTitle></SheetHeader>
           <div className="space-y-4 px-4">
             <p className="text-sm text-muted-foreground">
-              Upload a CSV file with columns: code, name, description, category, sku, purchasePrice, salePrice, quantityOnHand, reorderPoint
+              {t("importDescription")}
             </p>
             <div className="space-y-2">
-              <Label>CSV File</Label>
+              <Label>{t("csvFile")}</Label>
               <Input
                 type="file"
                 accept=".csv"
@@ -883,18 +895,18 @@ export default function InventoryPage() {
             </div>
             {importResult && (
               <div className="rounded-lg border p-3 space-y-2">
-                <p className="text-sm font-medium">Import Results</p>
+                <p className="text-sm font-medium">{t("importResults")}</p>
                 <div className="flex gap-4 text-sm">
-                  <span className="text-emerald-600">{importResult.created} created</span>
-                  <span className="text-blue-600">{importResult.updated} updated</span>
+                  <span className="text-emerald-600">{t("createdCount", { count: importResult.created })}</span>
+                  <span className="text-blue-600">{t("updatedCount", { count: importResult.updated })}</span>
                   {importResult.errors.length > 0 && (
-                    <span className="text-red-600">{importResult.errors.length} errors</span>
+                    <span className="text-red-600">{t("errorCount", { count: importResult.errors.length })}</span>
                   )}
                 </div>
                 {importResult.errors.length > 0 && (
                   <div className="max-h-32 overflow-y-auto text-xs space-y-1">
                     {importResult.errors.map((err, i) => (
-                      <p key={i} className="text-red-600">Row {err.row}: {err.message}</p>
+                      <p key={i} className="text-red-600">{t("rowError", { row: err.row, message: err.message })}</p>
                     ))}
                   </div>
                 )}
@@ -902,13 +914,13 @@ export default function InventoryPage() {
             )}
           </div>
           <SheetFooter>
-            <Button variant="outline" onClick={() => setImportOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setImportOpen(false)}>{t("cancel")}</Button>
             <Button
               onClick={handleImport}
               disabled={!importFile || importLoading}
               className="bg-emerald-600 hover:bg-emerald-700"
             >
-              {importLoading ? "Importing..." : "Import"}
+              {importLoading ? t("importing") : t("import")}
             </Button>
           </SheetFooter>
         </SheetContent>
