@@ -59,15 +59,17 @@ test("computeAmo applies both rates to the full gross, uncapped", () => {
   assert.equal(result.employer, 41_100); // 1,000,000 * 4.11%
 });
 
-test("computeMoroccanProfessionalExpenseDeduction applies 35%/25% and caps at 35,000 MAD/year", () => {
-  // Below the 78,000 MAD threshold: flat 35%.
+test("computeMoroccanProfessionalExpenseDeduction is a threshold rule (CGI Art. 59-I-A), not a marginal one", () => {
+  // At/below the 78,000 MAD threshold: 35% applies to the ENTIRE gross.
   assert.equal(computeMoroccanProfessionalExpenseDeduction(5_000_000), Math.round(5_000_000 * 0.35));
 
-  // 120,000 MAD/year gross: 35% of 78,000 + 25% of the 42,000 excess = 27,300 + 10,500 = 37,800 → capped at 35,000.
-  assert.equal(computeMoroccanProfessionalExpenseDeduction(12_000_000), 3_500_000);
+  // Above 78,000 MAD: 25% applies to the ENTIRE gross (not 35% of the first
+  // 78,000 plus 25% of the rest) — 100,000 MAD/year -> 25,000 MAD deduction,
+  // per the worked example in docs/research/morocco-payroll-rate-verification.md §8.
+  assert.equal(computeMoroccanProfessionalExpenseDeduction(10_000_000), 2_500_000);
 
-  // Already at/above the cap threshold on its own.
-  assert.equal(computeMoroccanProfessionalExpenseDeduction(50_000_000), 3_500_000);
+  // 150,000 MAD/year -> 25% x 150,000 = 37,500 MAD, capped at 35,000 MAD.
+  assert.equal(computeMoroccanProfessionalExpenseDeduction(15_000_000), 3_500_000);
 });
 
 test("Moroccan IR withholding spans multiple brackets for a 120,000 MAD/year salary", () => {
@@ -75,7 +77,8 @@ test("Moroccan IR withholding spans multiple brackets for a 120,000 MAD/year sal
   // hand-copied one, so this test actually exercises what gets persisted.
   const annualGrossCents = 12_000_000; // 120,000 MAD/year, i.e. 10,000 MAD/month
   const professionalExpenseDeduction = computeMoroccanProfessionalExpenseDeduction(annualGrossCents);
-  assert.equal(professionalExpenseDeduction, 3_500_000);
+  // Above the 78,000 MAD threshold: 25% of the entire 120,000 MAD gross = 30,000 MAD (not capped).
+  assert.equal(professionalExpenseDeduction, 3_000_000);
 
   const result = computePeriodWithholding({
     annualTaxableWage: annualGrossCents,
@@ -86,12 +89,12 @@ test("Moroccan IR withholding spans multiple brackets for a 120,000 MAD/year sal
     allowanceValueCents: 60_000,
   });
 
-  // Taxable base: 12,000,000 - 3,500,000 = 8,500,000 (85,000 MAD) — falls in the 80k-100k bracket.
-  assert.equal(result.taxableAfterDeductions, 8_500_000);
+  // Taxable base: 12,000,000 - 3,000,000 = 9,000,000 (90,000 MAD) — falls in the 80k-100k bracket.
+  assert.equal(result.taxableAfterDeductions, 9_000_000);
 
-  // Hand-computed: (60k-40k)*10% + (80k-60k)*20% + (85k-80k)*30% = 2,000 + 4,000 + 1,500 = 7,500 MAD.
-  assert.equal(result.annualTax, 750_000);
-  assert.equal(result.periodWithholding, 62_500); // 750,000 / 12 months
+  // Hand-computed: (60k-40k)*10% + (80k-60k)*20% + (90k-80k)*30% = 2,000 + 4,000 + 3,000 = 9,000 MAD.
+  assert.equal(result.annualTax, 900_000);
+  assert.equal(result.periodWithholding, 75_000); // 900,000 / 12 months
 });
 
 test("Moroccan IR withholding is zero below the 40,000 MAD/year threshold", () => {

@@ -17,7 +17,13 @@ type DbOrTx = typeof db | Parameters<Parameters<(typeof db)["transaction"]>[0]>[
 
 const MA_IR_TAX_YEAR = 2026;
 
-/** 2026 Moroccan IR schedule (Loi de Finances 2026 / Law 50-25, DGI circular note 737 — verify before production use). */
+/**
+ * Moroccan IR bracket schedule, in force for tax year 2026. The brackets
+ * themselves were set by Loi de Finances 2025 (Law 60-24) and left unchanged
+ * by LF2026/Law 50-25 (confirmed against the Ministry of Finance's official
+ * LF2025 fiscal-measures summary and DGI note circulaire n°737) — still
+ * current for 2026, just not a "2026" change despite the variable name.
+ */
 export const MA_IR_BRACKETS_2026: {
   minIncome: number;
   maxIncome: number | null;

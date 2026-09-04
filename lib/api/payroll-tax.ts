@@ -419,12 +419,16 @@ export const MA_DEPENDENT_ALLOWANCE_VALUE_CENTS = 60000;
 
 const MA_PROFESSIONAL_EXPENSE_THRESHOLD_CENTS = 7_800_000; // 78,000 MAD/year
 const MA_PROFESSIONAL_EXPENSE_CAP_CENTS = 3_500_000; // 35,000 MAD/year
-const MA_PROFESSIONAL_EXPENSE_RATE_BELOW_BP = 3500; // 35%
-const MA_PROFESSIONAL_EXPENSE_RATE_ABOVE_BP = 2500; // 25%
+const MA_PROFESSIONAL_EXPENSE_RATE_LOW_BP = 3500; // 35%
+const MA_PROFESSIONAL_EXPENSE_RATE_HIGH_BP = 2500; // 25%
 
 /**
- * Moroccan IR's standard professional-expense deduction: 35% of annual gross
- * up to 78,000 MAD, plus 25% of the excess, capped at 35,000 MAD/year total.
+ * Moroccan IR's standard professional-expense deduction (CGI Article 59-I-A,
+ * set by Loi de Finances 2023 / Law 50-22 — not LF2026, despite this feature
+ * shipping alongside 2026 rates): a THRESHOLD rule, not a marginal one. The
+ * rate (35% or 25%) applies to the ENTIRE annual gross depending on which
+ * side of 78,000 MAD/year it falls on — not 35% of the first 78,000 plus 25%
+ * of the rest. Result is capped at 35,000 MAD/year.
  * Feed the result into computePeriodWithholding's standardDeductionCents —
  * that engine only accepts a flat cents amount, not a percentage rule.
  */
@@ -432,10 +436,10 @@ export function computeMoroccanProfessionalExpenseDeduction(
   annualGrossCents: number
 ): number {
   const gross = Math.max(0, annualGrossCents);
-  const belowThreshold = Math.min(gross, MA_PROFESSIONAL_EXPENSE_THRESHOLD_CENTS);
-  const aboveThreshold = Math.max(0, gross - MA_PROFESSIONAL_EXPENSE_THRESHOLD_CENTS);
-  const deduction =
-    Math.round((belowThreshold * MA_PROFESSIONAL_EXPENSE_RATE_BELOW_BP) / 10000) +
-    Math.round((aboveThreshold * MA_PROFESSIONAL_EXPENSE_RATE_ABOVE_BP) / 10000);
+  const rateBp =
+    gross <= MA_PROFESSIONAL_EXPENSE_THRESHOLD_CENTS
+      ? MA_PROFESSIONAL_EXPENSE_RATE_LOW_BP
+      : MA_PROFESSIONAL_EXPENSE_RATE_HIGH_BP;
+  const deduction = Math.round((gross * rateBp) / 10000);
   return Math.min(deduction, MA_PROFESSIONAL_EXPENSE_CAP_CENTS);
 }
