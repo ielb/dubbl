@@ -5,8 +5,8 @@ import {
   computeAmo,
   computeMoroccanProfessionalExpenseDeduction,
   computePeriodWithholding,
-  type MarginalBracket,
 } from "../lib/api/payroll-tax";
+import { MA_IR_BRACKETS_2026 } from "../lib/db/seed-ma-payroll";
 
 // 10,000 MAD/month gross, in cents.
 const GROSS_10000_MAD = 1_000_000;
@@ -71,22 +71,15 @@ test("computeMoroccanProfessionalExpenseDeduction applies 35%/25% and caps at 35
 });
 
 test("Moroccan IR withholding spans multiple brackets for a 120,000 MAD/year salary", () => {
-  const MA_BRACKETS: MarginalBracket[] = [
-    { minIncome: 0, maxIncome: 4_000_000, rate: 0 },
-    { minIncome: 4_000_000, maxIncome: 6_000_000, rate: 1000 },
-    { minIncome: 6_000_000, maxIncome: 8_000_000, rate: 2000 },
-    { minIncome: 8_000_000, maxIncome: 10_000_000, rate: 3000 },
-    { minIncome: 10_000_000, maxIncome: 18_000_000, rate: 3400 },
-    { minIncome: 18_000_000, maxIncome: null, rate: 3700 },
-  ];
-
+  // Uses the real seeded 2026 schedule (lib/db/seed-ma-payroll.ts), not a
+  // hand-copied one, so this test actually exercises what gets persisted.
   const annualGrossCents = 12_000_000; // 120,000 MAD/year, i.e. 10,000 MAD/month
   const professionalExpenseDeduction = computeMoroccanProfessionalExpenseDeduction(annualGrossCents);
   assert.equal(professionalExpenseDeduction, 3_500_000);
 
   const result = computePeriodWithholding({
     annualTaxableWage: annualGrossCents,
-    brackets: MA_BRACKETS,
+    brackets: MA_IR_BRACKETS_2026,
     payPeriodsPerYear: 12,
     standardDeductionCents: professionalExpenseDeduction,
     allowances: 0,
@@ -102,14 +95,10 @@ test("Moroccan IR withholding spans multiple brackets for a 120,000 MAD/year sal
 });
 
 test("Moroccan IR withholding is zero below the 40,000 MAD/year threshold", () => {
-  const MA_BRACKETS: MarginalBracket[] = [
-    { minIncome: 0, maxIncome: 4_000_000, rate: 0 },
-    { minIncome: 4_000_000, maxIncome: 6_000_000, rate: 1000 },
-  ];
   const annualGrossCents = 3_000_000; // 30,000 MAD/year
   const result = computePeriodWithholding({
     annualTaxableWage: annualGrossCents,
-    brackets: MA_BRACKETS,
+    brackets: MA_IR_BRACKETS_2026,
     payPeriodsPerYear: 12,
     standardDeductionCents: computeMoroccanProfessionalExpenseDeduction(annualGrossCents),
     allowances: 0,

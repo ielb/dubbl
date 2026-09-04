@@ -23,7 +23,7 @@ import {
   member,
   auditLog,
 } from "@/lib/db/schema";
-import { eq, and, desc, sql, gte, lte, lt, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, gte, lte, lt } from "drizzle-orm";
 import { notDeleted } from "@/lib/db/soft-delete";
 import { requireRole } from "@/lib/api/require-role";
 import { wrapTool } from "@/lib/mcp/errors";
@@ -34,7 +34,7 @@ import {
   type TaxBreakdownLine,
   type EmployerTaxLine,
 } from "@/lib/api/payroll-withholding";
-import { taxBreakdownToDeductionLines } from "@/lib/payroll/payslip-generator";
+import { taxBreakdownToDeductionLines, loadTaxBreakdownByItem } from "@/lib/payroll/payslip-generator";
 import {
   getNextEntryNumber,
   findAccountByCode,
@@ -623,23 +623,7 @@ export function registerPayrollTools(server: McpServer, ctx: AuthContext) {
         if (run.status !== "completed") throw new Error("Can only generate payslips for completed runs");
 
         const itemIds = run.items.map((item) => item.id);
-        const taxRows =
-          itemIds.length > 0
-            ? await db
-                .select({
-                  payrollItemId: payrollItemTaxBreakdown.payrollItemId,
-                  taxKind: payrollItemTaxBreakdown.taxKind,
-                  amount: payrollItemTaxBreakdown.amount,
-                })
-                .from(payrollItemTaxBreakdown)
-                .where(inArray(payrollItemTaxBreakdown.payrollItemId, itemIds))
-            : [];
-        const taxRowsByItem = new Map<string, { taxKind: string; amount: number }[]>();
-        for (const row of taxRows) {
-          const list = taxRowsByItem.get(row.payrollItemId) ?? [];
-          list.push({ taxKind: row.taxKind, amount: row.amount });
-          taxRowsByItem.set(row.payrollItemId, list);
-        }
+        const taxRowsByItem = await loadTaxBreakdownByItem(itemIds);
 
         const payslips: (typeof payslip.$inferInsert)[] = [];
         for (const item of run.items) {

@@ -1,12 +1,12 @@
 import { db } from "@/lib/db";
-import { payrollRun, payrollItem, payrollItemTaxBreakdown, payslip } from "@/lib/db/schema";
-import { eq, and, sql, lte, inArray } from "drizzle-orm";
+import { payrollRun, payrollItem, payslip } from "@/lib/db/schema";
+import { eq, and, sql, lte } from "drizzle-orm";
 import { getAuthContext } from "@/lib/api/auth-context";
 import { requireRole } from "@/lib/api/require-role";
 import { handleError, ok, notFound, validationError } from "@/lib/api/response";
 import { notDeleted } from "@/lib/db/soft-delete";
 import { logAudit } from "@/lib/api/audit";
-import { taxBreakdownToDeductionLines } from "@/lib/payroll/payslip-generator";
+import { taxBreakdownToDeductionLines, loadTaxBreakdownByItem } from "@/lib/payroll/payslip-generator";
 
 export async function POST(
   request: Request,
@@ -33,23 +33,7 @@ export async function POST(
     // query (computeEmployeeWithholding already wrote these at run-creation
     // time — they were just never read back into the payslip until now).
     const itemIds = run.items.map((item) => item.id);
-    const taxRows =
-      itemIds.length > 0
-        ? await db
-            .select({
-              payrollItemId: payrollItemTaxBreakdown.payrollItemId,
-              taxKind: payrollItemTaxBreakdown.taxKind,
-              amount: payrollItemTaxBreakdown.amount,
-            })
-            .from(payrollItemTaxBreakdown)
-            .where(inArray(payrollItemTaxBreakdown.payrollItemId, itemIds))
-        : [];
-    const taxRowsByItem = new Map<string, { taxKind: string; amount: number }[]>();
-    for (const row of taxRows) {
-      const list = taxRowsByItem.get(row.payrollItemId) ?? [];
-      list.push({ taxKind: row.taxKind, amount: row.amount });
-      taxRowsByItem.set(row.payrollItemId, list);
-    }
+    const taxRowsByItem = await loadTaxBreakdownByItem(itemIds);
 
     // Calculate YTD values per employee
     const payslips: (typeof payslip.$inferInsert)[] = [];
