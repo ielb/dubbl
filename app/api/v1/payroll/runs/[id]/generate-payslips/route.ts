@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/api/require-role";
 import { handleError, ok, notFound, validationError } from "@/lib/api/response";
 import { notDeleted } from "@/lib/db/soft-delete";
 import { logAudit } from "@/lib/api/audit";
+import { taxBreakdownToDeductionLines, loadTaxBreakdownByItem } from "@/lib/payroll/payslip-generator";
 
 export async function POST(
   request: Request,
@@ -27,6 +28,12 @@ export async function POST(
 
     if (!run) return notFound("Payroll run");
     if (run.status !== "completed") return validationError("Can only generate payslips for completed runs");
+
+    // Load the persisted tax-breakdown lines for every item in this run in one
+    // query (computeEmployeeWithholding already wrote these at run-creation
+    // time — they were just never read back into the payslip until now).
+    const itemIds = run.items.map((item) => item.id);
+    const taxRowsByItem = await loadTaxBreakdownByItem(itemIds);
 
     // Calculate YTD values per employee
     const payslips: (typeof payslip.$inferInsert)[] = [];
@@ -55,7 +62,9 @@ export async function POST(
         grossAmount: item.grossAmount,
         netAmount: item.netAmount,
         taxAmount: item.taxAmount,
-        deductionsBreakdown: [],
+        deductionsBreakdown: taxBreakdownToDeductionLines(
+          taxRowsByItem.get(item.id) ?? []
+        ),
         ytdGross: ytd?.ytdGross || 0,
         ytdNet: ytd?.ytdNet || 0,
         ytdTax: ytd?.ytdTax || 0,

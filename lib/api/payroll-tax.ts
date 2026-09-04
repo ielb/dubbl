@@ -152,6 +152,26 @@ export function computePeriodWithholding(
   return { periodWithholding, annualTax, taxableAfterDeductions };
 }
 
+/**
+ * Cap a period wage against a wage base that is depleted year-to-date, and
+ * tax whatever slice of the period wage still falls below it. Shared by
+ * computeFica (employee SS), computeEmployerTaxes (SS/FUTA/SUTA), and
+ * computeCnss (Morocco's monthly-capped contributions, called with ytdWage
+ * pinned to 0 since that cap resets every period rather than accumulating
+ * across the year).
+ */
+export function cappedWageSlice(
+  periodWage: number,
+  ytdWage: number,
+  wageBaseCents: number,
+  rateBp: number
+): number {
+  const base = Math.max(0, wageBaseCents);
+  const room = Math.max(0, base - Math.max(0, ytdWage));
+  const taxable = Math.min(Math.max(0, periodWage), room);
+  return Math.round((taxable * Math.max(0, rateBp)) / 10000);
+}
+
 export interface ComputeFicaInput {
   /** Taxable wage for THIS period, in cents. */
   periodWage: number;
@@ -195,10 +215,7 @@ export function computeFica(input: ComputeFicaInput): FicaResult {
 
   // Social Security: only the slice of this period's wage that is still below
   // the annual wage base is taxed.
-  const ssBase = Math.max(0, input.ssWageBaseCents);
-  const remainingSsRoom = Math.max(0, ssBase - ytdWage);
-  const ssTaxable = Math.min(periodWage, remainingSsRoom);
-  const socialSecurity = Math.round((ssTaxable * Math.max(0, input.ssRateBp)) / 10000);
+  const socialSecurity = cappedWageSlice(periodWage, ytdWage, input.ssWageBaseCents, input.ssRateBp);
 
   // Medicare: uncapped on the full period wage.
   const medicare = Math.round((periodWage * Math.max(0, input.medicareRateBp)) / 10000);
@@ -269,23 +286,16 @@ export function computeEmployerTaxes(
   const periodWage = Math.max(0, input.periodWage);
   const ytdWage = Math.max(0, input.ytdWage);
 
-  const cappedTax = (wageBaseCents: number, rateBp: number): number => {
-    const base = Math.max(0, wageBaseCents);
-    const room = Math.max(0, base - ytdWage);
-    const taxable = Math.min(periodWage, room);
-    return Math.round((taxable * Math.max(0, rateBp)) / 10000);
-  };
-
   let socialSecurity = 0;
   let medicare = 0;
   if (input.employerFicaEnabled) {
-    socialSecurity = cappedTax(input.ssWageBaseCents, input.ssRateBp);
+    socialSecurity = cappedWageSlice(periodWage, ytdWage, input.ssWageBaseCents, input.ssRateBp);
     // Medicare is uncapped.
     medicare = Math.round((periodWage * Math.max(0, input.medicareRateBp)) / 10000);
   }
 
-  const futa = cappedTax(input.futaWageBaseCents, input.futaRateBp);
-  const suta = cappedTax(input.sutaWageBaseCents, input.sutaRateBp);
+  const futa = cappedWageSlice(periodWage, ytdWage, input.futaWageBaseCents, input.futaRateBp);
+  const suta = cappedWageSlice(periodWage, ytdWage, input.sutaWageBaseCents, input.sutaRateBp);
 
   const total = socialSecurity + medicare + futa + suta;
   return { socialSecurity, medicare, futa, suta, total };
@@ -302,4 +312,130 @@ export function payPeriodsPerYear(payFrequency: string): number {
     default:
       return 12;
   }
+}
+
+// ─── Morocco: CNSS / AMO / IR ────────────────────────────────────────
+
+export interface ComputeCnssInput {
+  /** Taxable wage for THIS period, in cents. */
+  periodWage: number;
+  /** Monthly wage ceiling for the capped components (pension/CT/IPE), in cents. */
+  monthlyCeilingCents: number;
+  pensionEmployeeRateBp: number;
+  ctEmployeeRateBp: number;
+  ipeEmployeeRateBp: number;
+  /** Employer-only, uncapped. */
+  allocationsFamilialesRateBp: number;
+  pensionEmployerRateBp: number;
+  ctEmployerRateBp: number;
+  ipeEmployerRateBp: number;
+  /** Employer-only, uncapped (taxe de formation professionnelle). */
+  tfpRateBp: number;
+}
+
+export interface CnssResult {
+  employee: { pension: number; ct: number; ipe: number; total: number };
+  employer: {
+    allocationsFamiliales: number;
+    pension: number;
+    ct: number;
+    ipe: number;
+    tfp: number;
+    total: number;
+  };
+}
+
+/**
+ * Compute Moroccan CNSS contributions for one pay period. Pension/CT/IPE are
+ * capped at a MONTHLY wage ceiling (not an annual YTD-depleted base like US
+ * FICA) — ytdWage is pinned to 0 in every cappedWageSlice call so the ceiling
+ * resets each period. Correct for monthly-paid employees; non-monthly pay
+ * frequencies would need the ceiling prorated per period, which is out of
+ * scope here. Allocations familiales and TFP are employer-only and uncapped.
+ */
+export function computeCnss(input: ComputeCnssInput): CnssResult {
+  const periodWage = Math.max(0, input.periodWage);
+  const capped = (rateBp: number) =>
+    cappedWageSlice(periodWage, 0, input.monthlyCeilingCents, rateBp);
+  const uncapped = (rateBp: number) =>
+    Math.round((periodWage * Math.max(0, rateBp)) / 10000);
+
+  const employeePension = capped(input.pensionEmployeeRateBp);
+  const employeeCt = capped(input.ctEmployeeRateBp);
+  const employeeIpe = capped(input.ipeEmployeeRateBp);
+
+  const employerAllocationsFamiliales = uncapped(input.allocationsFamilialesRateBp);
+  const employerPension = capped(input.pensionEmployerRateBp);
+  const employerCt = capped(input.ctEmployerRateBp);
+  const employerIpe = capped(input.ipeEmployerRateBp);
+  const employerTfp = uncapped(input.tfpRateBp);
+
+  return {
+    employee: {
+      pension: employeePension,
+      ct: employeeCt,
+      ipe: employeeIpe,
+      total: employeePension + employeeCt + employeeIpe,
+    },
+    employer: {
+      allocationsFamiliales: employerAllocationsFamiliales,
+      pension: employerPension,
+      ct: employerCt,
+      ipe: employerIpe,
+      tfp: employerTfp,
+      total:
+        employerAllocationsFamiliales +
+        employerPension +
+        employerCt +
+        employerIpe +
+        employerTfp,
+    },
+  };
+}
+
+export interface ComputeAmoInput {
+  /** Taxable wage for THIS period, in cents. */
+  periodWage: number;
+  employeeRateBp: number;
+  employerRateBp: number;
+}
+
+export interface AmoResult {
+  employee: number;
+  employer: number;
+}
+
+/** Compute Moroccan AMO (mandatory health insurance) — uncapped, both sides. */
+export function computeAmo(input: ComputeAmoInput): AmoResult {
+  const periodWage = Math.max(0, input.periodWage);
+  return {
+    employee: Math.round((periodWage * Math.max(0, input.employeeRateBp)) / 10000),
+    employer: Math.round((periodWage * Math.max(0, input.employerRateBp)) / 10000),
+  };
+}
+
+/** Annual value of one Moroccan IR per-dependent deduction, in cents (600 MAD). */
+export const MA_DEPENDENT_ALLOWANCE_VALUE_CENTS = 60000;
+
+const MA_PROFESSIONAL_EXPENSE_THRESHOLD_CENTS = 7_800_000; // 78,000 MAD/year
+const MA_PROFESSIONAL_EXPENSE_CAP_CENTS = 3_500_000; // 35,000 MAD/year
+const MA_PROFESSIONAL_EXPENSE_RATE_BELOW_BP = 3500; // 35%
+const MA_PROFESSIONAL_EXPENSE_RATE_ABOVE_BP = 2500; // 25%
+
+/**
+ * Moroccan IR's standard professional-expense deduction: 35% of annual gross
+ * up to 78,000 MAD, plus 25% of the excess, capped at 35,000 MAD/year total.
+ * Feed the result into computePeriodWithholding's standardDeductionCents —
+ * that engine only accepts a flat cents amount, not a percentage rule.
+ */
+export function computeMoroccanProfessionalExpenseDeduction(
+  annualGrossCents: number
+): number {
+  const gross = Math.max(0, annualGrossCents);
+  const belowThreshold = Math.min(gross, MA_PROFESSIONAL_EXPENSE_THRESHOLD_CENTS);
+  const aboveThreshold = Math.max(0, gross - MA_PROFESSIONAL_EXPENSE_THRESHOLD_CENTS);
+  const deduction =
+    Math.round((belowThreshold * MA_PROFESSIONAL_EXPENSE_RATE_BELOW_BP) / 10000) +
+    Math.round((aboveThreshold * MA_PROFESSIONAL_EXPENSE_RATE_ABOVE_BP) / 10000);
+  return Math.min(deduction, MA_PROFESSIONAL_EXPENSE_CAP_CENTS);
 }

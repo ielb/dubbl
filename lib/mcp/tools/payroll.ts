@@ -34,6 +34,7 @@ import {
   type TaxBreakdownLine,
   type EmployerTaxLine,
 } from "@/lib/api/payroll-withholding";
+import { taxBreakdownToDeductionLines, loadTaxBreakdownByItem } from "@/lib/payroll/payslip-generator";
 import {
   getNextEntryNumber,
   findAccountByCode,
@@ -621,6 +622,9 @@ export function registerPayrollTools(server: McpServer, ctx: AuthContext) {
         if (!run) throw new Error("Payroll run not found");
         if (run.status !== "completed") throw new Error("Can only generate payslips for completed runs");
 
+        const itemIds = run.items.map((item) => item.id);
+        const taxRowsByItem = await loadTaxBreakdownByItem(itemIds);
+
         const payslips: (typeof payslip.$inferInsert)[] = [];
         for (const item of run.items) {
           const [ytd] = await db
@@ -647,7 +651,9 @@ export function registerPayrollTools(server: McpServer, ctx: AuthContext) {
             grossAmount: item.grossAmount,
             netAmount: item.netAmount,
             taxAmount: item.taxAmount,
-            deductionsBreakdown: [],
+            deductionsBreakdown: taxBreakdownToDeductionLines(
+              taxRowsByItem.get(item.id) ?? []
+            ),
             ytdGross: ytd?.ytdGross || 0,
             ytdNet: ytd?.ytdNet || 0,
             ytdTax: ytd?.ytdTax || 0,

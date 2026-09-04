@@ -207,6 +207,25 @@ export const payrollSettings = pgTable("payroll_settings", {
   sutaWageBaseCents: integer("suta_wage_base_cents").notNull().default(0),
   // Default tax year used when an employee/jurisdiction has no explicit config.
   defaultTaxYear: integer("default_tax_year"),
+  // Which country's statutory payroll shape applies to this org. Independent of
+  // organization.countryCode (invoicing/tax-profile country) — an org's payroll
+  // country can differ, e.g. a US-HQ'd org with an all-Moroccan team.
+  country: text("country").notNull().default("US"),
+  // ── CNSS / AMO / TFP (Morocco) — basis points + cents, read only when
+  // country = "MA". Defaults are the real 2026 statutory rates so setting an
+  // org's country to "MA" is enough to get correct payroll without also
+  // editing every rate column (lib/api/payroll-tax.ts → computeCnss/computeAmo).
+  cnssMonthlyCeilingCents: integer("cnss_monthly_ceiling_cents").notNull().default(600000), // 6,000 MAD/month, pension/CT/IPE only
+  cnssPensionEmployeeRateBp: integer("cnss_pension_employee_rate_bp").notNull().default(396), // 3.96%
+  cnssCtEmployeeRateBp: integer("cnss_ct_employee_rate_bp").notNull().default(33), // 0.33%
+  cnssIpeEmployeeRateBp: integer("cnss_ipe_employee_rate_bp").notNull().default(19), // 0.19%
+  cnssAmoEmployeeRateBp: integer("cnss_amo_employee_rate_bp").notNull().default(226), // 2.26%, uncapped
+  cnssAllocationsFamilialesRateBp: integer("cnss_allocations_familiales_rate_bp").notNull().default(640), // 6.40%, employer only, uncapped
+  cnssPensionEmployerRateBp: integer("cnss_pension_employer_rate_bp").notNull().default(793), // 7.93%
+  cnssCtEmployerRateBp: integer("cnss_ct_employer_rate_bp").notNull().default(67), // 0.67%
+  cnssIpeEmployerRateBp: integer("cnss_ipe_employer_rate_bp").notNull().default(38), // 0.38%
+  cnssAmoEmployerRateBp: integer("cnss_amo_employer_rate_bp").notNull().default(411), // 4.11%, uncapped
+  cnssTfpRateBp: integer("cnss_tfp_rate_bp").notNull().default(160), // 1.60%, employer only, uncapped
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });
