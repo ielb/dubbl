@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Plus, FileText, X, Banknote, Search, Loader2, Send, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -59,25 +60,26 @@ const statusColors: Record<string, string> = {
   void: "border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300",
 };
 
-const methodLabels: Record<string, string> = {
-  bank_transfer: "Bank Transfer",
-  cash: "Cash",
-  check: "Check",
-  card: "Card",
-  other: "Other",
-};
+interface InvoiceColumnCopy {
+  number: string;
+  customer: string;
+  date: string;
+  due: string;
+  statusLabel: string;
+  total: string;
+  balance: string;
+  selectInvoice: (number: string) => string;
+  dueToday: string;
+  dueIn: (days: number) => string;
+  daysOverdue: (days: number) => string;
+  statuses: Record<string, string>;
+}
 
-// Plain-language status labels (end users aren't accountants — avoid "void").
-const statusLabels: Record<string, string> = {
-  draft: "draft",
-  sent: "sent",
-  partial: "part paid",
-  paid: "paid",
-  overdue: "overdue",
-  void: "cancelled",
-};
-
-function getOverdueInfo(dueDate: string, status: string) {
+function getOverdueInfo(
+  dueDate: string,
+  status: string,
+  copy: Pick<InvoiceColumnCopy, "dueToday" | "dueIn" | "daysOverdue">
+) {
   if (status === "paid" || status === "void" || status === "draft") return null;
   const now = new Date();
   const due = new Date(dueDate);
@@ -85,18 +87,19 @@ function getOverdueInfo(dueDate: string, status: string) {
   const days = Math.floor(diffMs / 86400000);
   if (days <= 0) {
     const daysLeft = Math.abs(days);
-    if (daysLeft === 0) return { label: "Due today", color: "text-amber-600" };
-    if (daysLeft <= 7) return { label: `Due in ${daysLeft}d`, color: "text-muted-foreground" };
+    if (daysLeft === 0) return { label: copy.dueToday, color: "text-amber-600" };
+    if (daysLeft <= 7) return { label: copy.dueIn(daysLeft), color: "text-muted-foreground" };
     return null;
   }
-  if (days <= 30) return { label: `${days}d overdue`, color: "text-red-500" };
-  if (days <= 90) return { label: `${days}d overdue`, color: "text-red-600 font-medium" };
-  return { label: `${days}d overdue`, color: "text-red-700 font-semibold" };
+  if (days <= 30) return { label: copy.daysOverdue(days), color: "text-red-500" };
+  if (days <= 90) return { label: copy.daysOverdue(days), color: "text-red-600 font-medium" };
+  return { label: copy.daysOverdue(days), color: "text-red-700 font-semibold" };
 }
 
 function buildColumns(
   selectedIds: Set<string>,
-  toggleOne: (id: string) => void
+  toggleOne: (id: string) => void,
+  copy: InvoiceColumnCopy
 ): Column<Invoice>[] {
   return [
     {
@@ -112,37 +115,37 @@ function buildColumns(
           <Checkbox
             checked={selectedIds.has(r.id)}
             onCheckedChange={() => toggleOne(r.id)}
-            aria-label={`Select invoice ${r.invoiceNumber}`}
+            aria-label={copy.selectInvoice(r.invoiceNumber)}
           />
         </div>
       ),
     },
     {
       key: "number",
-      header: "Number",
+      header: copy.number,
       sortKey: "number",
       className: "w-32",
       render: (r) => <span className="font-mono text-sm">{r.invoiceNumber}</span>,
     },
     {
       key: "contact",
-      header: "Customer",
+      header: copy.customer,
       render: (r) => <span className="text-sm font-medium">{r.contact?.name || "-"}</span>,
     },
     {
       key: "date",
-      header: "Date",
+      header: copy.date,
       sortKey: "date",
       className: "w-28",
       render: (r) => <span className="text-sm">{r.issueDate}</span>,
     },
     {
       key: "due",
-      header: "Due",
+      header: copy.due,
       sortKey: "due",
       className: "w-36",
       render: (r) => {
-        const info = getOverdueInfo(r.dueDate, r.status);
+        const info = getOverdueInfo(r.dueDate, r.status, copy);
         return (
           <div className="flex items-center gap-2">
             <span className="text-sm">{r.dueDate}</span>
@@ -155,17 +158,17 @@ function buildColumns(
     },
     {
       key: "status",
-      header: "Status",
+      header: copy.statusLabel,
       className: "w-24",
       render: (r) => (
         <Badge variant="outline" className={statusColors[r.status] || ""}>
-          {statusLabels[r.status] || r.status}
+          {copy.statuses[r.status] || r.status}
         </Badge>
       ),
     },
     {
       key: "total",
-      header: "Total",
+      header: copy.total,
       sortKey: "total",
       className: "w-28 text-right",
       render: (r) => (
@@ -174,7 +177,7 @@ function buildColumns(
     },
     {
       key: "due-amount",
-      header: "Balance",
+      header: copy.balance,
       sortKey: "amountDue",
       className: "w-28 text-right",
       render: (r) => {
@@ -194,6 +197,7 @@ function buildColumns(
 }
 
 export default function InvoicesPage() {
+  const t = useTranslations("Sales");
   const router = useRouter();
   const { open: openDrawer } = useCreateDrawer();
   const currency = useOrganization()?.defaultCurrency ?? "USD";
@@ -237,8 +241,28 @@ export default function InvoicesPage() {
   }, []);
 
   const columns = useMemo(
-    () => buildColumns(selectedIds, toggleOne),
-    [selectedIds, toggleOne]
+    () => buildColumns(selectedIds, toggleOne, {
+      number: t("invoices.number"),
+      customer: t("invoices.customer"),
+      date: t("invoices.date"),
+      due: t("invoices.due"),
+      statusLabel: t("invoices.statusLabel"),
+      total: t("invoices.total"),
+      balance: t("invoices.balance"),
+      selectInvoice: (number) => t("invoices.selectInvoice", { number }),
+      dueToday: t("invoices.dueToday"),
+      dueIn: (days) => t("invoices.dueIn", { days }),
+      daysOverdue: (days) => t("invoices.daysOverdue", { days }),
+      statuses: {
+        draft: t("invoices.status.draft"),
+        sent: t("invoices.status.sent"),
+        partial: t("invoices.status.partial"),
+        paid: t("invoices.status.paid"),
+        overdue: t("invoices.status.overdue"),
+        void: t("invoices.status.void"),
+      },
+    }),
+    [selectedIds, t, toggleOne]
   );
 
   const buildParams = useCallback((p: number) => {
@@ -257,7 +281,6 @@ export default function InvoicesPage() {
   useEffect(() => {
     if (!orgId) return;
     let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRefetching(true);
     setPage(1);
 
@@ -271,11 +294,11 @@ export default function InvoicesPage() {
         setTotalCount(data.pagination?.total || 0);
       })
       .then(() => devDelay())
-      .catch(() => { if (!cancelled) setError("Failed to load invoices. Please check your connection."); })
+      .catch(() => { if (!cancelled) setError(t("invoices.loadFailed")); })
       .finally(() => { if (!cancelled) { setInitialLoad(false); setRefetching(false); setFetchKey((k) => k + 1); } });
 
     return () => { cancelled = true; };
-  }, [orgId, buildParams]);
+  }, [orgId, buildParams, t]);
 
   // Load more
   const loadMore = useCallback(() => {
@@ -358,7 +381,6 @@ export default function InvoicesPage() {
 
   // Bump searchKey when debounced search changes to trigger ContentReveal
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSearchKey((k) => k + 1);
   }, [debouncedSearch]);
 
@@ -437,27 +459,26 @@ export default function InvoicesPage() {
         });
         const data = await res.json();
         if (!res.ok) {
-          toast.error(typeof data.error === "string" ? data.error : "Bulk action failed");
+          toast.error(typeof data.error === "string" ? data.error : t("invoices.bulkFailed"));
           return;
         }
         const s = data.summary || { sent: 0, skipped: 0, failed: 0, total: 0 };
-        const verb = action === "send-reminder" ? "Reminder" : "Invoice";
-        const parts: string[] = [];
-        if (s.sent) parts.push(`${s.sent} ${verb.toLowerCase()}${s.sent !== 1 ? "s" : ""} sent`);
-        if (s.skipped) parts.push(`${s.skipped} skipped`);
-        if (s.failed) parts.push(`${s.failed} failed`);
-        const msg = parts.join(", ") || "Nothing to do";
+        const msg = t("invoices.bulkResult", {
+          sent: s.sent,
+          skipped: s.skipped,
+          failed: s.failed,
+        });
         if (s.failed) toast.error(msg);
         else toast.success(msg);
         clearSelection();
         if (action === "mark-as-sent" && s.sent) refreshList();
       } catch {
-        toast.error("Bulk action failed. Please check your connection.");
+        toast.error(t("invoices.bulkFailed"));
       } finally {
         setBulkRunning(false);
       }
     },
-    [orgId, bulkRunning, clearSelection, refreshList]
+    [orgId, bulkRunning, clearSelection, refreshList, t]
   );
 
   const outstanding = summary?.outstanding || 0;
@@ -484,9 +505,9 @@ export default function InvoicesPage() {
           <div className="w-full max-w-xl">
             <div className="grid grid-cols-3 gap-0">
               {[
-                { step: "1", label: "Create", sub: "Draft your invoice with line items and pricing", color: "bg-blue-500", ring: "ring-blue-200 dark:ring-blue-900" },
-                { step: "2", label: "Send", sub: "Email it directly to your customer", color: "bg-amber-500", ring: "ring-amber-200 dark:ring-amber-900" },
-                { step: "3", label: "Get paid", sub: "Track payments and outstanding balances", color: "bg-emerald-500", ring: "ring-emerald-200 dark:ring-emerald-900" },
+                { step: "1", label: t("invoices.create"), sub: t("invoices.createDescription"), color: "bg-blue-500", ring: "ring-blue-200 dark:ring-blue-900" },
+                { step: "2", label: t("invoices.send"), sub: t("invoices.sendDescription"), color: "bg-amber-500", ring: "ring-amber-200 dark:ring-amber-900" },
+                { step: "3", label: t("invoices.getPaid"), sub: t("invoices.getPaidDescription"), color: "bg-emerald-500", ring: "ring-emerald-200 dark:ring-emerald-900" },
               ].map(({ step, label, sub, color, ring }, i) => (
                 <div key={step} className="flex flex-col items-center text-center relative">
                   {i < 2 && (
@@ -504,24 +525,24 @@ export default function InvoicesPage() {
 
           {/* CTA */}
           <div className="text-center">
-            <h2 className="text-lg font-semibold tracking-tight">Start getting paid</h2>
-            <p className="mt-1.5 text-sm text-muted-foreground">Create your first invoice to begin tracking revenue.</p>
+            <h2 className="text-lg font-semibold tracking-tight">{t("invoices.emptyTitle")}</h2>
+            <p className="mt-1.5 text-sm text-muted-foreground">{t("invoices.emptyDescription")}</p>
             <Button
               onClick={() => openDrawer("invoice")}
               size="lg"
               className="mt-5 bg-emerald-600 hover:bg-emerald-700"
             >
               <Plus className="mr-2 size-4" />
-              New Invoice
+              {t("invoices.newInvoice")}
             </Button>
           </div>
 
           {/* Preview stat cards (empty) */}
           <div className="w-full max-w-lg grid grid-cols-1 sm:grid-cols-3 gap-3 opacity-40">
             {[
-              { label: "Outstanding", value: "$0.00" },
-              { label: "Overdue", value: "$0.00" },
-              { label: "Paid this month", value: "$0.00" },
+              { label: t("invoices.outstanding"), value: formatMoney(0, currency) },
+              { label: t("invoices.status.overdue"), value: formatMoney(0, currency) },
+              { label: t("invoices.paidThisMonth"), value: formatMoney(0, currency) },
             ].map(({ label, value }) => (
               <div key={label} className="rounded-lg border border-dashed p-3 text-center">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
@@ -538,9 +559,9 @@ export default function InvoicesPage() {
     <ContentReveal className="space-y-6">
       {/* Top: Stats */}
       <div className="grid gap-3 sm:grid-cols-3">
-        <StatCard title="Outstanding" value={formatMoney(outstanding, currency)} icon={FileText} />
-        <StatCard title="Overdue" value={formatMoney(overdue, currency)} icon={FileText} changeType="negative" />
-        <StatCard title="Total Invoices" value={invoiceCount.toString()} icon={FileText} />
+        <StatCard title={t("invoices.outstanding")} value={formatMoney(outstanding, currency)} icon={FileText} />
+        <StatCard title={t("invoices.status.overdue")} value={formatMoney(overdue, currency)} icon={FileText} changeType="negative" />
+        <StatCard title={t("invoices.totalInvoices")} value={invoiceCount.toString()} icon={FileText} />
       </div>
 
       {/* Aging + Recent Payments side by side */}
@@ -548,7 +569,7 @@ export default function InvoicesPage() {
         {/* Aging Breakdown */}
         {agingTotal > 0 && (
           <div className="rounded-lg border p-4 space-y-3">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Aging Breakdown</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("invoices.agingBreakdown")}</p>
             <div className="h-2.5 w-full rounded-full overflow-hidden flex">
               {([
                 { key: "current" as const, color: "bg-emerald-500" },
@@ -564,10 +585,10 @@ export default function InvoicesPage() {
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
               {([
-                { key: "current" as const, color: "bg-emerald-500", label: "Current" },
-                { key: "1-30" as const, color: "bg-amber-400", label: "1-30 days" },
-                { key: "31-60" as const, color: "bg-orange-500", label: "31-60 days" },
-                { key: "60+" as const, color: "bg-red-500", label: "60+ days" },
+                { key: "current" as const, color: "bg-emerald-500", label: t("invoices.current") },
+                { key: "1-30" as const, color: "bg-amber-400", label: t("invoices.days1to30") },
+                { key: "31-60" as const, color: "bg-orange-500", label: t("invoices.days31to60") },
+                { key: "60+" as const, color: "bg-red-500", label: t("invoices.days60plus") },
               ] as const).map(({ key, color, label }) => (
                 <div key={key} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-1.5">
@@ -587,9 +608,9 @@ export default function InvoicesPage() {
         {payments.length > 0 && (
           <div className="rounded-lg border p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recent Payments</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("invoices.recentPayments")}</p>
               <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground px-2" onClick={() => router.push("/sales/payments")}>
-                View all
+                {t("invoices.viewAll")}
               </Button>
             </div>
             <div className="space-y-0.5">
@@ -621,12 +642,12 @@ export default function InvoicesPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Tabs value={statusFilter} onValueChange={setStatusFilter}>
             <TabsList className="overflow-x-auto">
-              <TabsTrigger value="all" className="whitespace-nowrap">All</TabsTrigger>
-              <TabsTrigger value="draft" className="whitespace-nowrap">Draft</TabsTrigger>
-              <TabsTrigger value="sent" className="whitespace-nowrap">Sent</TabsTrigger>
-              <TabsTrigger value="partial" className="whitespace-nowrap">Partial</TabsTrigger>
-              <TabsTrigger value="paid" className="whitespace-nowrap">Paid</TabsTrigger>
-              <TabsTrigger value="overdue" className="whitespace-nowrap">Overdue</TabsTrigger>
+              <TabsTrigger value="all" className="whitespace-nowrap">{t("invoices.status.all")}</TabsTrigger>
+              <TabsTrigger value="draft" className="whitespace-nowrap">{t("invoices.status.draft")}</TabsTrigger>
+              <TabsTrigger value="sent" className="whitespace-nowrap">{t("invoices.status.sent")}</TabsTrigger>
+              <TabsTrigger value="partial" className="whitespace-nowrap">{t("invoices.status.partial")}</TabsTrigger>
+              <TabsTrigger value="paid" className="whitespace-nowrap">{t("invoices.status.paid")}</TabsTrigger>
+              <TabsTrigger value="overdue" className="whitespace-nowrap">{t("invoices.status.overdue")}</TabsTrigger>
             </TabsList>
           </Tabs>
 
@@ -636,7 +657,7 @@ export default function InvoicesPage() {
             className="bg-emerald-600 hover:bg-emerald-700"
           >
             <Plus className="mr-2 size-4" />
-            New Invoice
+            {t("invoices.newInvoice")}
           </Button>
         </div>
 
@@ -644,27 +665,27 @@ export default function InvoicesPage() {
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
             <Input
-              placeholder="Search invoices..."
+              placeholder={t("invoices.search")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-8 w-56 pl-8 text-xs"
             />
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground shrink-0">From</span>
+            <span className="text-xs text-muted-foreground shrink-0">{t("invoices.from")}</span>
             <DatePicker
               value={dateFrom}
               onChange={(v) => setDateFrom(v)}
-              placeholder="Start date"
+              placeholder={t("invoices.startDate")}
               className="h-8 w-40 text-xs"
             />
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground shrink-0">To</span>
+            <span className="text-xs text-muted-foreground shrink-0">{t("invoices.to")}</span>
             <DatePicker
               value={dateTo}
               onChange={(v) => setDateTo(v)}
-              placeholder="End date"
+              placeholder={t("invoices.endDate")}
               className="h-8 w-40 text-xs"
             />
           </div>
@@ -677,18 +698,18 @@ export default function InvoicesPage() {
             }}
           >
             <SelectTrigger className="h-8 w-44 text-xs">
-              <SelectValue placeholder="Sort by..." />
+              <SelectValue placeholder={t("invoices.sortBy")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="created:desc">Newest first</SelectItem>
-              <SelectItem value="created:asc">Oldest first</SelectItem>
-              <SelectItem value="due:asc">Due soonest</SelectItem>
-              <SelectItem value="due:desc">Due latest</SelectItem>
-              <SelectItem value="total:desc">Highest amount</SelectItem>
-              <SelectItem value="total:asc">Lowest amount</SelectItem>
-              <SelectItem value="amountDue:desc">Highest balance</SelectItem>
-              <SelectItem value="number:desc">Number (desc)</SelectItem>
-              <SelectItem value="number:asc">Number (asc)</SelectItem>
+              <SelectItem value="created:desc">{t("invoices.newest")}</SelectItem>
+              <SelectItem value="created:asc">{t("invoices.oldest")}</SelectItem>
+              <SelectItem value="due:asc">{t("invoices.dueSoonest")}</SelectItem>
+              <SelectItem value="due:desc">{t("invoices.dueLatest")}</SelectItem>
+              <SelectItem value="total:desc">{t("invoices.highestAmount")}</SelectItem>
+              <SelectItem value="total:asc">{t("invoices.lowestAmount")}</SelectItem>
+              <SelectItem value="amountDue:desc">{t("invoices.highestBalance")}</SelectItem>
+              <SelectItem value="number:desc">{t("invoices.numberDesc")}</SelectItem>
+              <SelectItem value="number:asc">{t("invoices.numberAsc")}</SelectItem>
             </SelectContent>
           </Select>
           {hasFilters && (
@@ -699,7 +720,7 @@ export default function InvoicesPage() {
               onClick={() => { setSearch(""); setDateFrom(""); setDateTo(""); }}
             >
               <X className="mr-1 size-3" />
-              Clear filters
+              {t("invoices.clearFilters")}
             </Button>
           )}
         </div>
@@ -710,10 +731,10 @@ export default function InvoicesPage() {
             <Checkbox
               checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
               onCheckedChange={toggleAll}
-              aria-label="Select all invoices"
+              aria-label={t("invoices.selectAll")}
             />
             <span className="text-xs font-medium">
-              {selectedIds.size} selected
+              {t("invoices.selected", { count: selectedIds.size })}
             </span>
             <div className="h-4 w-px bg-border mx-1" />
             <Button
@@ -728,7 +749,7 @@ export default function InvoicesPage() {
               ) : (
                 <Send className="mr-1.5 size-3.5" />
               )}
-              Send reminder
+              {t("invoices.sendReminder")}
               {remindableSelected.length > 0 && ` (${remindableSelected.length})`}
             </Button>
             <Button
@@ -743,7 +764,7 @@ export default function InvoicesPage() {
               ) : (
                 <CheckCircle2 className="mr-1.5 size-3.5" />
               )}
-              Mark as sent
+              {t("invoices.markAsSent")}
               {draftSelected.length > 0 && ` (${draftSelected.length})`}
             </Button>
             <Button
@@ -754,7 +775,7 @@ export default function InvoicesPage() {
               disabled={bulkRunning}
             >
               <X className="mr-1 size-3" />
-              Clear
+              {t("invoices.clear")}
             </Button>
           </div>
         )}
@@ -767,7 +788,7 @@ export default function InvoicesPage() {
               columns={columns}
               data={filteredInvoices}
               loading={false}
-              emptyMessage="No invoices match your filters."
+              emptyMessage={t("invoices.noMatches")}
               onRowClick={(r) => router.push(`/sales/${r.id}`)}
               sortBy={sortBy}
               sortOrder={sortOrder}
@@ -781,7 +802,7 @@ export default function InvoicesPage() {
           <>
             <div className="flex items-center justify-between pt-1">
               <p className="text-xs text-muted-foreground">
-                Showing {invoices.length} of {totalCount} invoice{totalCount !== 1 ? "s" : ""}
+                {t("invoices.showing", { shown: invoices.length, total: totalCount })}
               </p>
             </div>
             {hasMore && (

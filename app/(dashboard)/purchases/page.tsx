@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Plus,
   ShoppingCart,
@@ -12,7 +13,6 @@ import {
   Clock,
   CheckCircle2,
   Loader2,
-  FileText,
 } from "lucide-react";
 import { Section } from "@/components/dashboard/section";
 import { DataTable, type Column } from "@/components/dashboard/data-table";
@@ -61,43 +61,50 @@ const statusColors: Record<string, string> = {
   void: "border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300",
 };
 
-// Plain-language status labels (end users aren't accountants).
-// "received" means the bill is approved and in your books.
-const statusLabels: Record<string, string> = {
-  draft: "draft",
-  received: "in your books",
-  partial: "part paid",
-  paid: "paid",
-  overdue: "overdue",
-  void: "cancelled",
-};
+interface BillColumnCopy {
+  number: string;
+  supplier: string;
+  date: string;
+  due: string;
+  statusLabel: string;
+  total: string;
+  balance: string;
+  dueToday: string;
+  dueIn: (days: number) => string;
+  daysOverdue: (days: number) => string;
+  statuses: Record<string, string>;
+}
 
-function getDueInfo(dueDate: string, status: string) {
+function getDueInfo(
+  dueDate: string,
+  status: string,
+  copy: Pick<BillColumnCopy, "dueToday" | "dueIn" | "daysOverdue">
+) {
   if (status === "paid" || status === "void" || status === "draft") return null;
   const now = new Date();
   const due = new Date(dueDate);
   const days = Math.floor((now.getTime() - due.getTime()) / 86400000);
   if (days <= 0) {
     const left = Math.abs(days);
-    if (left === 0) return { label: "Due today", color: "text-amber-600" };
+    if (left === 0) return { label: copy.dueToday, color: "text-amber-600" };
     if (left <= 7)
-      return { label: `Due in ${left}d`, color: "text-muted-foreground" };
+      return { label: copy.dueIn(left), color: "text-muted-foreground" };
     return null;
   }
-  if (days <= 30) return { label: `${days}d overdue`, color: "text-red-500" };
+  if (days <= 30) return { label: copy.daysOverdue(days), color: "text-red-500" };
   if (days <= 90)
-    return { label: `${days}d overdue`, color: "text-red-600 font-medium" };
+    return { label: copy.daysOverdue(days), color: "text-red-600 font-medium" };
   return {
-    label: `${days}d overdue`,
+    label: copy.daysOverdue(days),
     color: "text-red-700 font-semibold",
   };
 }
 
-function buildColumns(): Column<Bill>[] {
+function buildColumns(copy: BillColumnCopy): Column<Bill>[] {
   return [
     {
       key: "number",
-      header: "Number",
+      header: copy.number,
       sortKey: "number",
       className: "w-32",
       render: (r) => (
@@ -106,25 +113,25 @@ function buildColumns(): Column<Bill>[] {
     },
     {
       key: "contact",
-      header: "Supplier",
+      header: copy.supplier,
       render: (r) => (
         <span className="text-sm font-medium">{r.contact?.name || "-"}</span>
       ),
     },
     {
       key: "date",
-      header: "Date",
+      header: copy.date,
       sortKey: "date",
       className: "w-28",
       render: (r) => <span className="text-sm">{r.issueDate}</span>,
     },
     {
       key: "due",
-      header: "Due",
+      header: copy.due,
       sortKey: "due",
       className: "w-36",
       render: (r) => {
-        const info = getDueInfo(r.dueDate, r.status);
+        const info = getDueInfo(r.dueDate, r.status, copy);
         return (
           <div className="flex items-center gap-2">
             <span className="text-sm">{r.dueDate}</span>
@@ -137,17 +144,17 @@ function buildColumns(): Column<Bill>[] {
     },
     {
       key: "status",
-      header: "Status",
+      header: copy.statusLabel,
       className: "w-24",
       render: (r) => (
         <Badge variant="outline" className={statusColors[r.status] || ""}>
-          {statusLabels[r.status] || r.status}
+          {copy.statuses[r.status] || r.status}
         </Badge>
       ),
     },
     {
       key: "total",
-      header: "Total",
+      header: copy.total,
       sortKey: "total",
       className: "w-28 text-right",
       render: (r) => (
@@ -158,7 +165,7 @@ function buildColumns(): Column<Bill>[] {
     },
     {
       key: "due-amount",
-      header: "Balance",
+      header: copy.balance,
       sortKey: "amountDue",
       className: "w-28 text-right",
       render: (r) => {
@@ -175,6 +182,7 @@ function buildColumns(): Column<Bill>[] {
 }
 
 export default function BillsPage() {
+  const t = useTranslations("Purchases");
   const router = useRouter();
   const { open: openDrawer } = useCreateDrawer();
   const currency = useOrganization()?.defaultCurrency ?? "USD";
@@ -196,10 +204,29 @@ export default function BillsPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  useDocumentTitle("Purchases · Bills");
+  useDocumentTitle(t("bills.documentTitle"));
 
   const orgId = typeof window !== "undefined" ? localStorage.getItem("activeOrgId") : null;
-  const columns = useMemo(() => buildColumns(), []);
+  const columns = useMemo(() => buildColumns({
+    number: t("bills.number"),
+    supplier: t("bills.supplier"),
+    date: t("bills.date"),
+    due: t("bills.due"),
+    statusLabel: t("bills.statusLabel"),
+    total: t("bills.total"),
+    balance: t("bills.balance"),
+    dueToday: t("bills.dueToday"),
+    dueIn: (days) => t("bills.dueIn", { days }),
+    daysOverdue: (days) => t("bills.daysOverdue", { days }),
+    statuses: {
+      draft: t("bills.status.draft"),
+      received: t("bills.status.received"),
+      partial: t("bills.status.partial"),
+      paid: t("bills.status.paid"),
+      overdue: t("bills.status.overdue"),
+      void: t("bills.status.void"),
+    },
+  }), [t]);
 
   // Build params (shared between page 1 fetch and loadMore)
   const buildParams = useCallback((pg: number) => {
@@ -416,7 +443,13 @@ export default function BillsPage() {
                   i % 4 === 2 ? "bg-emerald-100 text-emerald-400 dark:bg-emerald-900/40 dark:text-emerald-500" :
                   "bg-red-100 text-red-400 dark:bg-red-900/40 dark:text-red-500"
                 }`}>
-                  {i % 4 === 0 ? "received" : i % 4 === 1 ? "partial" : i % 4 === 2 ? "paid" : "overdue"}
+                  {i % 4 === 0
+                    ? t("bills.status.received")
+                    : i % 4 === 1
+                      ? t("bills.status.partial")
+                      : i % 4 === 2
+                        ? t("bills.status.paid")
+                        : t("bills.status.overdue")}
                 </div>
                 <div className={`h-2.5 rounded bg-muted/40 ${i % 2 === 0 ? "w-16" : "w-14"}`} />
                 <div className={`h-2.5 rounded bg-muted/40 ${i % 2 === 0 ? "w-14" : "w-16"}`} />
@@ -431,11 +464,10 @@ export default function BillsPage() {
               <ShoppingCart className="size-7 text-amber-600 dark:text-amber-400" />
             </div>
             <h2 className="mt-5 text-xl font-semibold tracking-tight">
-              Track what you owe
+              {t("bills.emptyTitle")}
             </h2>
             <p className="mt-2 max-w-md text-sm text-muted-foreground leading-relaxed">
-              Add bills from your suppliers to keep track of what you owe, when
-              it&apos;s due, and how long bills have been waiting to be paid.
+              {t("bills.emptyDescription")}
             </p>
             <Button
               onClick={() => openDrawer("bill")}
@@ -443,7 +475,7 @@ export default function BillsPage() {
               className="mt-6 bg-emerald-600 hover:bg-emerald-700"
             >
               <Plus className="mr-2 size-4" />
-              New Bill
+              {t("bills.newBill")}
             </Button>
           </div>
         </div>
@@ -453,22 +485,22 @@ export default function BillsPage() {
           {[
             {
               icon: Clock,
-              title: "Aging tracking",
-              desc: "See how long bills have been outstanding with automatic aging buckets.",
+              title: t("bills.agingTracking"),
+              desc: t("bills.agingTrackingDescription"),
               color: "text-amber-600 dark:text-amber-400",
               bg: "bg-amber-50 dark:bg-amber-950/40",
             },
             {
               icon: AlertTriangle,
-              title: "Overdue alerts",
-              desc: "Bills approaching or past their due date are highlighted so you never miss a payment.",
+              title: t("bills.overdueAlerts"),
+              desc: t("bills.overdueAlertsDescription"),
               color: "text-red-600 dark:text-red-400",
               bg: "bg-red-50 dark:bg-red-950/40",
             },
             {
               icon: CheckCircle2,
-              title: "Payment matching",
-              desc: "Record payments against bills and track outstanding balances automatically.",
+              title: t("bills.paymentMatching"),
+              desc: t("bills.paymentMatchingDescription"),
               color: "text-emerald-600 dark:text-emerald-400",
               bg: "bg-emerald-50 dark:bg-emerald-950/40",
             },
@@ -502,7 +534,7 @@ export default function BillsPage() {
         <div className="px-5 pt-5 pb-4 sm:px-6 sm:pt-6">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Total Outstanding</p>
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t("bills.totalOutstanding")}</p>
               <p className="mt-1 text-3xl sm:text-4xl font-bold font-mono tabular-nums tracking-tighter">
                 {formatMoney(outstanding, currency)}
               </p>
@@ -510,19 +542,19 @@ export default function BillsPage() {
             <div className="flex gap-6 sm:gap-8">
               <div>
                 <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-                  <span className="size-1.5 rounded-full bg-red-500" />Overdue
+                  <span className="size-1.5 rounded-full bg-red-500" />{t("bills.status.overdue")}
                 </p>
                 <p className="mt-0.5 text-lg font-semibold font-mono tabular-nums text-red-600 dark:text-red-400">
                   {formatMoney(overdue, currency)}
                 </p>
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground">Bills</p>
+                <p className="text-[11px] text-muted-foreground">{t("bills.bills")}</p>
                 <p className="mt-0.5 text-lg font-semibold tabular-nums">{countsData?.total || 0}</p>
               </div>
               <div>
                 <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-                  <span className="size-1.5 rounded-full bg-emerald-500" />Paid
+                  <span className="size-1.5 rounded-full bg-emerald-500" />{t("bills.status.paid")}
                 </p>
                 <p className="mt-0.5 text-lg font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
                   {statusCounts.paid || 0}
@@ -535,7 +567,7 @@ export default function BillsPage() {
         {/* Aging bar + legend */}
         {agingTotal > 0 && (
           <div className="border-t px-5 py-4 sm:px-6">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">Aging</p>
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">{t("bills.aging")}</p>
             <div className="h-2.5 w-full rounded-full overflow-hidden flex mb-3">
               {([
                 { key: "current" as const, color: "bg-emerald-500" },
@@ -550,10 +582,10 @@ export default function BillsPage() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2">
               {([
-                { key: "current" as const, color: "bg-emerald-500", label: "Current" },
-                { key: "1-30" as const, color: "bg-amber-400", label: "1-30 days" },
-                { key: "31-60" as const, color: "bg-orange-500", label: "31-60 days" },
-                { key: "60+" as const, color: "bg-red-500", label: "60+ days" },
+                { key: "current" as const, color: "bg-emerald-500", label: t("bills.current") },
+                { key: "1-30" as const, color: "bg-amber-400", label: t("bills.days1to30") },
+                { key: "31-60" as const, color: "bg-orange-500", label: t("bills.days31to60") },
+                { key: "60+" as const, color: "bg-red-500", label: t("bills.days60plus") },
               ] as const).map(({ key, color, label }) => (
                 <div key={key} className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -576,7 +608,7 @@ export default function BillsPage() {
             <div className="flex items-center gap-2 mb-3">
               <AlertTriangle className="size-3.5 text-amber-600 dark:text-amber-400" />
               <span className="text-[11px] font-medium uppercase tracking-wider text-amber-700 dark:text-amber-300">
-                Due within 7 days
+                {t("bills.dueWithin7")}
               </span>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -593,7 +625,7 @@ export default function BillsPage() {
                     <div className="min-w-0">
                       <p className="text-xs font-mono font-medium">{b.billNumber}</p>
                       <p className="text-[11px] text-muted-foreground truncate max-w-[120px]">
-                        {b.contact?.name || "No supplier"}
+                        {b.contact?.name || t("bills.noSupplier")}
                       </p>
                     </div>
                     <div className="text-right shrink-0">
@@ -601,7 +633,11 @@ export default function BillsPage() {
                         {formatMoney(b.amountDue)}
                       </p>
                       <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                        {days === 0 ? "Today" : days === 1 ? "Tomorrow" : `${days} days`}
+                        {days === 0
+                          ? t("bills.today")
+                          : days === 1
+                            ? t("bills.tomorrow")
+                            : t("bills.days", { days })}
                       </p>
                     </div>
                   </button>
@@ -614,18 +650,18 @@ export default function BillsPage() {
 
       <div className="h-px bg-border" />
 
-      <Section title="Bills" description="View, filter, and manage all your bills.">
+      <Section title={t("bills.bills")} description={t("bills.sectionDescription")}>
         <div className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0">
               <Tabs value={statusFilter} onValueChange={setStatusFilter}>
                 <TabsList>
-                  <TabsTrigger value="all" className="whitespace-nowrap">All ({countsData?.total || 0})</TabsTrigger>
-                  <TabsTrigger value="draft" className="whitespace-nowrap">Draft ({statusCounts.draft || 0})</TabsTrigger>
-                  <TabsTrigger value="received" className="whitespace-nowrap" title="Bills you've approved and added to your books">In your books ({statusCounts.received || 0})</TabsTrigger>
-                  <TabsTrigger value="partial" className="whitespace-nowrap">Part paid ({statusCounts.partial || 0})</TabsTrigger>
-                  <TabsTrigger value="paid" className="whitespace-nowrap">Paid ({statusCounts.paid || 0})</TabsTrigger>
-                  <TabsTrigger value="overdue" className="whitespace-nowrap">Overdue ({statusCounts.overdue || 0})</TabsTrigger>
+                  <TabsTrigger value="all" className="whitespace-nowrap">{t("bills.status.all")} ({countsData?.total || 0})</TabsTrigger>
+                  <TabsTrigger value="draft" className="whitespace-nowrap">{t("bills.status.draft")} ({statusCounts.draft || 0})</TabsTrigger>
+                  <TabsTrigger value="received" className="whitespace-nowrap" title={t("bills.receivedHelp")}>{t("bills.status.received")} ({statusCounts.received || 0})</TabsTrigger>
+                  <TabsTrigger value="partial" className="whitespace-nowrap">{t("bills.status.partial")} ({statusCounts.partial || 0})</TabsTrigger>
+                  <TabsTrigger value="paid" className="whitespace-nowrap">{t("bills.status.paid")} ({statusCounts.paid || 0})</TabsTrigger>
+                  <TabsTrigger value="overdue" className="whitespace-nowrap">{t("bills.status.overdue")} ({statusCounts.overdue || 0})</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
@@ -636,7 +672,7 @@ export default function BillsPage() {
               className="bg-emerald-600 hover:bg-emerald-700"
             >
               <Plus className="mr-2 size-4" />
-              New Bill
+              {t("bills.newBill")}
             </Button>
           </div>
 
@@ -644,27 +680,27 @@ export default function BillsPage() {
             <div className="relative w-full sm:max-w-xs">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
-                placeholder="Search bills..."
+                placeholder={t("bills.search")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
               />
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs text-muted-foreground shrink-0">From</span>
+              <span className="text-xs text-muted-foreground shrink-0">{t("bills.from")}</span>
               <DatePicker
                 value={dateFrom}
                 onChange={(v) => setDateFrom(v)}
-                placeholder="Start date"
+                placeholder={t("bills.startDate")}
                 className="h-8 w-40 text-xs"
               />
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs text-muted-foreground shrink-0">To</span>
+              <span className="text-xs text-muted-foreground shrink-0">{t("bills.to")}</span>
               <DatePicker
                 value={dateTo}
                 onChange={(v) => setDateTo(v)}
-                placeholder="End date"
+                placeholder={t("bills.endDate")}
                 className="h-8 w-40 text-xs"
               />
             </div>
@@ -677,18 +713,18 @@ export default function BillsPage() {
               }}
             >
               <SelectTrigger className="h-8 w-44 text-xs">
-                <SelectValue placeholder="Sort by..." />
+                <SelectValue placeholder={t("bills.sortBy")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="created:desc">Newest first</SelectItem>
-                <SelectItem value="created:asc">Oldest first</SelectItem>
-                <SelectItem value="due:asc">Due soonest</SelectItem>
-                <SelectItem value="due:desc">Due latest</SelectItem>
-                <SelectItem value="total:desc">Highest amount</SelectItem>
-                <SelectItem value="total:asc">Lowest amount</SelectItem>
-                <SelectItem value="amountDue:desc">Highest balance</SelectItem>
-                <SelectItem value="number:desc">Number (desc)</SelectItem>
-                <SelectItem value="number:asc">Number (asc)</SelectItem>
+                <SelectItem value="created:desc">{t("bills.newest")}</SelectItem>
+                <SelectItem value="created:asc">{t("bills.oldest")}</SelectItem>
+                <SelectItem value="due:asc">{t("bills.dueSoonest")}</SelectItem>
+                <SelectItem value="due:desc">{t("bills.dueLatest")}</SelectItem>
+                <SelectItem value="total:desc">{t("bills.highestAmount")}</SelectItem>
+                <SelectItem value="total:asc">{t("bills.lowestAmount")}</SelectItem>
+                <SelectItem value="amountDue:desc">{t("bills.highestBalance")}</SelectItem>
+                <SelectItem value="number:desc">{t("bills.numberDesc")}</SelectItem>
+                <SelectItem value="number:asc">{t("bills.numberAsc")}</SelectItem>
               </SelectContent>
             </Select>
             {hasFilters && (
@@ -702,7 +738,7 @@ export default function BillsPage() {
                 }}
               >
                 <X className="mr-1 size-3" />
-                Clear dates
+                {t("bills.clearDates")}
               </Button>
             )}
           </div>
@@ -726,7 +762,7 @@ export default function BillsPage() {
                   columns={columns}
                   data={bills}
                   loading={loading}
-                  emptyMessage="No bills match your filters."
+                  emptyMessage={t("bills.noMatches")}
                   onRowClick={(r) => router.push(`/purchases/${r.id}`)}
                   sortBy={sortBy}
                   sortOrder={sortOrder}
