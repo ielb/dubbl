@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Plus,
   ArrowLeftRight,
@@ -53,14 +54,16 @@ const statusColors: Record<string, string> = {
   void: "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300",
 };
 
-// Plain-language status labels (end users aren't accountants).
-const statusLabels: Record<string, string> = {
-  posted: "in your books",
-  draft: "draft",
-  void: "cancelled",
-};
+interface EntryColumnCopy {
+  date: string;
+  description: string;
+  status: string;
+  amount: string;
+  statuses: Record<string, string>;
+}
 
-const columns: Column<Entry>[] = [
+function buildColumns(copy: EntryColumnCopy): Column<Entry>[] {
+  return [
   {
     key: "number",
     header: "#",
@@ -73,13 +76,13 @@ const columns: Column<Entry>[] = [
   },
   {
     key: "date",
-    header: "Date",
+    header: copy.date,
     className: "w-28",
     render: (r) => <span className="text-sm">{r.date}</span>,
   },
   {
     key: "description",
-    header: "Description",
+    header: copy.description,
     render: (r) => (
       <div>
         <p className="text-sm font-medium">{r.description}</p>
@@ -91,17 +94,17 @@ const columns: Column<Entry>[] = [
   },
   {
     key: "status",
-    header: "Status",
+    header: copy.status,
     className: "w-24",
     render: (r) => (
       <Badge variant="outline" className={statusColors[r.status] || ""}>
-        {statusLabels[r.status] || r.status}
+        {copy.statuses[r.status] || r.status}
       </Badge>
     ),
   },
   {
     key: "amount",
-    header: "Amount",
+    header: copy.amount,
     className: "w-28 text-right",
     render: (r) => (
       <span className="font-mono text-sm tabular-nums">
@@ -109,9 +112,11 @@ const columns: Column<Entry>[] = [
       </span>
     ),
   },
-];
+  ];
+}
 
 export default function TransactionsPage() {
+  const t = useTranslations("Accounting.manualEntries");
   const router = useRouter();
   const { open: openDrawer } = useCreateDrawer();
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -123,7 +128,19 @@ export default function TransactionsPage() {
   const [dateTo, setDateTo] = useState("");
   const [sortBy, setSortBy] = useState("date:desc");
 
-  useDocumentTitle("Accounting \u00B7 Manual entries");
+  useDocumentTitle(t("documentTitle"));
+
+  const columns = useMemo(() => buildColumns({
+    date: t("columns.date"),
+    description: t("columns.description"),
+    status: t("columns.status"),
+    amount: t("columns.amount"),
+    statuses: {
+      posted: t("status.posted"),
+      draft: t("status.draft"),
+      void: t("status.void"),
+    },
+  }), [t]);
 
   useEffect(() => {
     const orgId = localStorage.getItem("activeOrgId");
@@ -209,11 +226,10 @@ export default function TransactionsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold tracking-tight">
-              Manual entries
+              {t("title")}
             </h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Direct adjustments to your books, used for things like accruals or
-              corrections.
+              {t("description")}
             </p>
           </div>
           <Button
@@ -222,7 +238,7 @@ export default function TransactionsPage() {
             className="bg-emerald-600 hover:bg-emerald-700"
           >
             <Plus className="mr-2 size-4" />
-            New manual entry
+            {t("newEntry")}
           </Button>
         </div>
 
@@ -234,24 +250,24 @@ export default function TransactionsPage() {
                 {
                   step: "1",
                   icon: BookOpen,
-                  label: "Set up accounts",
-                  sub: "Set up the categories you record transactions against",
+                  label: t("setupAccounts"),
+                  sub: t("setupAccountsDescription"),
                   color: "bg-blue-500",
                   ring: "ring-blue-200 dark:ring-blue-900",
                 },
                 {
                   step: "2",
                   icon: ArrowLeftRight,
-                  label: "Record entries",
-                  sub: "Add manual entries to adjust your books when needed",
+                  label: t("recordEntries"),
+                  sub: t("recordEntriesDescription"),
                   color: "bg-amber-500",
                   ring: "ring-amber-200 dark:ring-amber-900",
                 },
                 {
                   step: "3",
                   icon: BarChart3,
-                  label: "Generate reports",
-                  sub: "View trial balance, income statement, and more",
+                  label: t("generateReports"),
+                  sub: t("generateReportsDescription"),
                   color: "bg-emerald-500",
                   ring: "ring-emerald-200 dark:ring-emerald-900",
                 },
@@ -283,10 +299,10 @@ export default function TransactionsPage() {
           {/* CTA */}
           <div className="text-center">
             <h2 className="text-lg font-semibold tracking-tight">
-              Start tracking transactions
+              {t("emptyTitle")}
             </h2>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              Add your first manual entry to adjust your books.
+              {t("emptyDescription")}
             </p>
             <Button
               onClick={() => openDrawer("entry")}
@@ -294,16 +310,16 @@ export default function TransactionsPage() {
               className="mt-5 bg-emerald-600 hover:bg-emerald-700"
             >
               <Plus className="mr-2 size-4" />
-              New manual entry
+              {t("newEntry")}
             </Button>
           </div>
 
           {/* Preview stat cards (empty) */}
           <div className="w-full max-w-lg grid grid-cols-1 sm:grid-cols-3 gap-3 opacity-40">
             {[
-              { label: "Total in your books", value: "$0.00" },
-              { label: "In your books", value: "0" },
-              { label: "Drafts", value: "0" },
+              { label: t("totalPosted"), value: formatMoney(0) },
+              { label: t("status.posted"), value: "0" },
+              { label: t("drafts"), value: "0" },
             ].map(({ label, value }) => (
               <div
                 key={label}
@@ -331,7 +347,7 @@ export default function TransactionsPage() {
           {/* Total in your books */}
           <div>
             <p className="text-[11px] text-muted-foreground uppercase tracking-wide">
-              Total in your books
+              {t("totalPosted")}
             </p>
             <p className="mt-1 font-mono text-lg font-semibold tabular-nums">
               {formatMoney(totalPosted)}
@@ -342,7 +358,7 @@ export default function TransactionsPage() {
           <div>
             <p className="text-[11px] text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
               <CheckCircle2 className="size-3 text-emerald-500" />
-              In your books
+              {t("status.posted")}
             </p>
             <p className="mt-1 font-mono text-lg font-semibold tabular-nums">
               {posted.length}
@@ -353,7 +369,7 @@ export default function TransactionsPage() {
           <div>
             <p className="text-[11px] text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
               <FileEdit className="size-3 text-amber-500" />
-              Drafts
+              {t("drafts")}
             </p>
             <p className="mt-1 font-mono text-lg font-semibold tabular-nums text-amber-600 dark:text-amber-400">
               {drafts.length}
@@ -364,7 +380,7 @@ export default function TransactionsPage() {
           <div>
             <p className="text-[11px] text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
               <Ban className="size-3 text-red-500" />
-              Cancelled
+              {t("status.void")}
             </p>
             <p className="mt-1 font-mono text-lg font-semibold tabular-nums text-red-600 dark:text-red-400">
               {voids.length}
@@ -378,7 +394,7 @@ export default function TransactionsPage() {
           className="bg-emerald-600 hover:bg-emerald-700 shrink-0"
         >
           <Plus className="mr-2 size-4" />
-          New manual entry
+          {t("newEntry")}
         </Button>
       </div>
 
@@ -392,25 +408,25 @@ export default function TransactionsPage() {
             <Tabs value={statusFilter} onValueChange={setStatusFilter}>
               <TabsList className="overflow-x-auto">
                 <TabsTrigger value="all" className="whitespace-nowrap">
-                  All{" "}
+                  {t("status.all")}{" "}
                   <span className="ml-1.5 text-[10px] text-muted-foreground tabular-nums">
                     {entries.length}
                   </span>
                 </TabsTrigger>
                 <TabsTrigger value="posted" className="whitespace-nowrap">
-                  In your books{" "}
+                  {t("status.posted")}{" "}
                   <span className="ml-1.5 text-[10px] text-muted-foreground tabular-nums">
                     {posted.length}
                   </span>
                 </TabsTrigger>
                 <TabsTrigger value="draft" className="whitespace-nowrap">
-                  Draft{" "}
+                  {t("status.draft")}{" "}
                   <span className="ml-1.5 text-[10px] text-muted-foreground tabular-nums">
                     {drafts.length}
                   </span>
                 </TabsTrigger>
                 <TabsTrigger value="void" className="whitespace-nowrap">
-                  Cancelled{" "}
+                  {t("status.void")}{" "}
                   <span className="ml-1.5 text-[10px] text-muted-foreground tabular-nums">
                     {voids.length}
                   </span>
@@ -424,7 +440,7 @@ export default function TransactionsPage() {
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
               <Input
-                placeholder="Search entries..."
+                placeholder={t("search")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="h-8 w-56 pl-8 text-xs"
@@ -432,35 +448,35 @@ export default function TransactionsPage() {
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-muted-foreground shrink-0">
-                From
+                {t("from")}
               </span>
               <DatePicker
                 value={dateFrom}
                 onChange={(v) => setDateFrom(v)}
-                placeholder="Start date"
+                placeholder={t("startDate")}
                 className="h-8 w-40 text-xs"
               />
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs text-muted-foreground shrink-0">To</span>
+              <span className="text-xs text-muted-foreground shrink-0">{t("to")}</span>
               <DatePicker
                 value={dateTo}
                 onChange={(v) => setDateTo(v)}
-                placeholder="End date"
+                placeholder={t("endDate")}
                 className="h-8 w-40 text-xs"
               />
             </div>
             <Select value={sortBy} onValueChange={setSortBy}>
               <SelectTrigger className="h-8 w-44 text-xs">
-                <SelectValue placeholder="Sort by..." />
+                <SelectValue placeholder={t("sortBy")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="date:desc">Newest first</SelectItem>
-                <SelectItem value="date:asc">Oldest first</SelectItem>
-                <SelectItem value="number:desc">Entry # (desc)</SelectItem>
-                <SelectItem value="number:asc">Entry # (asc)</SelectItem>
-                <SelectItem value="amount:desc">Highest amount</SelectItem>
-                <SelectItem value="amount:asc">Lowest amount</SelectItem>
+                <SelectItem value="date:desc">{t("newest")}</SelectItem>
+                <SelectItem value="date:asc">{t("oldest")}</SelectItem>
+                <SelectItem value="number:desc">{t("entryDesc")}</SelectItem>
+                <SelectItem value="number:asc">{t("entryAsc")}</SelectItem>
+                <SelectItem value="amount:desc">{t("highestAmount")}</SelectItem>
+                <SelectItem value="amount:asc">{t("lowestAmount")}</SelectItem>
               </SelectContent>
             </Select>
             {hasFilters && (
@@ -475,7 +491,7 @@ export default function TransactionsPage() {
                 }}
               >
                 <X className="mr-1 size-3" />
-                Clear filters
+                {t("clearFilters")}
               </Button>
             )}
           </div>
@@ -491,8 +507,8 @@ export default function TransactionsPage() {
                 loading={false}
                 emptyMessage={
                   hasFilters || statusFilter !== "all"
-                    ? "No entries match your filters."
-                    : "No entries found."
+                    ? t("noMatches")
+                    : t("noEntries")
                 }
                 onRowClick={(r) => router.push(`/accounting/${r.id}`)}
               />
@@ -502,8 +518,7 @@ export default function TransactionsPage() {
           {/* Count */}
           {!pendingSearch && filtered.length > 0 && (
             <p className="text-xs text-muted-foreground pt-1">
-              Showing {filtered.length} of {entries.length} entr
-              {entries.length !== 1 ? "ies" : "y"}
+              {t("showing", { shown: filtered.length, total: entries.length })}
             </p>
           )}
         </div>
