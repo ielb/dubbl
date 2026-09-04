@@ -39,6 +39,81 @@
     "french": "Français",
     "signOut": "Se déconnecter"
   },
+  "Sales": {
+    "tabs": {
+      "invoices": "Factures",
+      "quotes": "Devis",
+      "cashSales": "Ventes au comptant",
+      "creditNotes": "Avoirs clients",
+      "payments": "Paiements",
+      "paymentsHelp": "Paiements reçus des clients",
+      "prepayments": "Acomptes",
+      "prepaymentsHelp": "Sommes versées à l'avance par les clients et conservées à leur crédit",
+      "revenueSchedules": "Échéanciers de produits",
+      "revenueSchedulesHelp": "Étalez la comptabilisation du produit d'une facture dans le temps",
+      "recurring": "Récurrent"
+    }
+  },
+  "Purchases": {
+    "tabs": {
+      "bills": "Factures fournisseurs",
+      "recurringBills": "Factures récurrentes",
+      "recurringBillsHelp": "Factures fournisseurs répétées selon un calendrier",
+      "supplierCredits": "Avoirs fournisseurs",
+      "supplierCreditsHelp": "Crédits dus par un fournisseur et imputables sur ses factures",
+      "expenses": "Dépenses",
+      "purchaseOrders": "Bons de commande",
+      "goodsReceived": "Réceptions",
+      "goodsReceivedHelp": "Articles reçus d'un fournisseur au titre d'un bon de commande",
+      "requisitions": "Demandes d'achat",
+      "landedCosts": "Coûts d'acquisition",
+      "landedCostsHelp": "Fret, droits et autres frais ajoutés au coût du stock"
+    }
+  },
+  "Accounting": {
+    "tabs": {
+      "transactions": "Écritures",
+      "accounts": "Plan comptable",
+      "banking": "Banque",
+      "loans": "Emprunts",
+      "loansHelp": "Suivez les emprunts et comptabilisez les échéances",
+      "fixedAssets": "Immobilisations",
+      "assetCategories": "Catégories d'immobilisations",
+      "assetCategoriesHelp": "Modèles d'amortissement réutilisables pour les immobilisations",
+      "budgets": "Budgets",
+      "openingBalances": "Soldes d'ouverture",
+      "openingBalancesHelp": "Soldes initiaux des comptes à la mise en service de l'application",
+      "accruals": "Charges et produits constatés",
+      "accrualsHelp": "Répartissez une charge ou un produit sur plusieurs mois",
+      "recurringJournals": "Écritures récurrentes",
+      "recurringJournalsHelp": "Écritures comptables enregistrées automatiquement selon un calendrier"
+    }
+  },
+  "Inventory": {
+    "tabs": {
+      "items": "Articles",
+      "stocktakes": "Inventaires physiques",
+      "locations": "Dépôts",
+      "transfers": "Transferts",
+      "stockValue": "Valorisation du stock"
+    }
+  },
+  "Reports": {},
+  "CRM": {},
+  "Projects": {},
+  "Documents": {},
+  "Tax": {
+    "tabs": {
+      "taxRates": "Taux de taxe",
+      "currencies": "Devises",
+      "taxPeriods": "Périodes fiscales",
+      "vatReturn": "Déclaration de TVA",
+      "bas": "BAS",
+      "salesTax": "Taxe de vente",
+      "scheduleC": "Annexe C",
+      "tvaDeclaration": "Déclaration de TVA"
+    }
+  },
   "Payroll": {
     "tabs": {
       "overview": "Aperçu",

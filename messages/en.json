@@ -39,6 +39,81 @@
     "french": "French",
     "signOut": "Sign out"
   },
+  "Sales": {
+    "tabs": {
+      "invoices": "Invoices",
+      "quotes": "Quotes",
+      "cashSales": "Cash Sales",
+      "creditNotes": "Credit Notes",
+      "payments": "Payments",
+      "paymentsHelp": "Payments received from customers",
+      "prepayments": "Prepayments",
+      "prepaymentsHelp": "Money customers paid in advance, held as credit on their account",
+      "revenueSchedules": "Revenue Schedules",
+      "revenueSchedulesHelp": "Recognize income from an invoice gradually over time",
+      "recurring": "Recurring"
+    }
+  },
+  "Purchases": {
+    "tabs": {
+      "bills": "Bills",
+      "recurringBills": "Recurring Bills",
+      "recurringBillsHelp": "Supplier bills that repeat on a schedule",
+      "supplierCredits": "Supplier Credits",
+      "supplierCreditsHelp": "Credit a supplier owes you back, applied against bills",
+      "expenses": "Expenses",
+      "purchaseOrders": "Purchase Orders",
+      "goodsReceived": "Goods Received",
+      "goodsReceivedHelp": "Items received from suppliers against a purchase order",
+      "requisitions": "Requisitions",
+      "landedCosts": "Landed Costs",
+      "landedCostsHelp": "Extra costs such as freight and duty added to stock cost"
+    }
+  },
+  "Accounting": {
+    "tabs": {
+      "transactions": "Transactions",
+      "accounts": "Accounts",
+      "banking": "Banking",
+      "loans": "Loans",
+      "loansHelp": "Track loans and post repayments on schedule",
+      "fixedAssets": "Fixed Assets",
+      "assetCategories": "Asset Categories",
+      "assetCategoriesHelp": "Reusable depreciation templates for fixed assets",
+      "budgets": "Budgets",
+      "openingBalances": "Opening Balances",
+      "openingBalancesHelp": "Account starting balances from when you began using the app",
+      "accruals": "Accruals",
+      "accrualsHelp": "Spread a cost or income evenly over several months",
+      "recurringJournals": "Recurring Journals",
+      "recurringJournalsHelp": "Manual journal entries that post automatically on a schedule"
+    }
+  },
+  "Inventory": {
+    "tabs": {
+      "items": "Items",
+      "stocktakes": "Stocktakes",
+      "locations": "Locations",
+      "transfers": "Transfers",
+      "stockValue": "Stock value"
+    }
+  },
+  "Reports": {},
+  "CRM": {},
+  "Projects": {},
+  "Documents": {},
+  "Tax": {
+    "tabs": {
+      "taxRates": "Tax Rates",
+      "currencies": "Currencies",
+      "taxPeriods": "Tax Periods",
+      "vatReturn": "VAT Return",
+      "bas": "BAS",
+      "salesTax": "Sales Tax",
+      "scheduleC": "Schedule C",
+      "tvaDeclaration": "TVA Declaration"
+    }
+  },
   "Payroll": {
     "tabs": {
       "overview": "Overview",

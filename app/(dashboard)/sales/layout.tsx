@@ -2,22 +2,23 @@
 
 import { FileText, ScrollText, CreditCard, RefreshCw, Banknote, Wallet, CalendarClock, Coins } from "lucide-react";
 import { TabLayout } from "@/components/dashboard/tab-layout";
-
-const TABS = [
-  { href: "/sales", label: "Invoices", icon: FileText, exact: true },
-  { href: "/sales/quotes", label: "Quotes", icon: ScrollText },
-  { href: "/sales/receipts", label: "Cash Sales", icon: Banknote },
-  { href: "/sales/credit-notes", label: "Credit Notes", icon: CreditCard },
-  { href: "/sales/payments", label: "Payments", icon: Coins, title: "Payments received from customers" },
-  { href: "/sales/customer-prepayments", label: "Prepayments", icon: Wallet, title: "Money customers paid in advance, held as credit on their account" },
-  { href: "/sales/revenue-schedules", label: "Revenue Schedules", icon: CalendarClock, title: "Recognise income from an invoice gradually over time" },
-  { href: "/sales/recurring", label: "Recurring", icon: RefreshCw },
-];
+import { useTranslations } from "next-intl";
 
 export default function SalesLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <TabLayout tabs={TABS}>{children}</TabLayout>;
+  const t = useTranslations("Sales");
+  const tabs = [
+    { href: "/sales", label: t("tabs.invoices"), icon: FileText, exact: true },
+    { href: "/sales/quotes", label: t("tabs.quotes"), icon: ScrollText },
+    { href: "/sales/receipts", label: t("tabs.cashSales"), icon: Banknote },
+    { href: "/sales/credit-notes", label: t("tabs.creditNotes"), icon: CreditCard },
+    { href: "/sales/payments", label: t("tabs.payments"), icon: Coins, title: t("tabs.paymentsHelp") },
+    { href: "/sales/customer-prepayments", label: t("tabs.prepayments"), icon: Wallet, title: t("tabs.prepaymentsHelp") },
+    { href: "/sales/revenue-schedules", label: t("tabs.revenueSchedules"), icon: CalendarClock, title: t("tabs.revenueSchedulesHelp") },
+    { href: "/sales/recurring", label: t("tabs.recurring"), icon: RefreshCw },
+  ];
+  return <TabLayout tabs={tabs}>{children}</TabLayout>;
 }
