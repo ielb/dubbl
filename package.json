@@ -11,6 +11,7 @@
     "trigger:deploy": "trigger deploy",
     "lint": "eslint",
     "test": "node --import tsx --test tests/*.test.ts",
+    "i18n:coverage": "tsx scripts/i18n-coverage.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:migrate": "tsx scripts/db-migrate.ts",
