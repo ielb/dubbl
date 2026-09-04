@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import Link from "next/link";
-import { Save, Plus, Trash2, Settings, Shield, Clock, CalendarDays, DollarSign, Layers, ExternalLink } from "lucide-react";
+import { Save, Plus, Trash2, Shield, Clock, CalendarDays, DollarSign, Layers, ExternalLink } from "lucide-react";
 import { Section } from "@/components/dashboard/section";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,7 @@ interface PayrollSettingsData {
   taxPayableAccountCode: string;
   bankAccountCode: string;
   autoApprovalEnabled: boolean;
+  country: "US" | "MA";
 }
 
 interface DeductionType {
@@ -121,6 +122,7 @@ export default function PayrollSettingsPage() {
     taxPayableAccountCode: "2200",
     bankAccountCode: "1100",
     autoApprovalEnabled: false,
+    country: "US",
   });
 
   // Deduction types
@@ -189,8 +191,10 @@ export default function PayrollSettingsPage() {
         headers: { "Content-Type": "application/json", "x-organization-id": orgId },
         body: JSON.stringify(settings),
       });
-      if (res.ok) toast.success("Settings saved");
-      else toast.error("Failed to save settings");
+      if (res.ok) {
+        toast.success("Settings saved");
+        fetchAll();
+      } else toast.error("Failed to save settings");
     } catch {
       toast.error("Failed to save settings");
     } finally {
@@ -395,6 +399,26 @@ export default function PayrollSettingsPage() {
                   value={settings.defaultCurrency}
                   onValueChange={(v) => setSettings({ ...settings, defaultCurrency: v })}
                 />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Payroll Country</Label>
+                <Select
+                  value={settings.country}
+                  onValueChange={(country: "US" | "MA") =>
+                    setSettings({ ...settings, country })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="US">United States</SelectItem>
+                    <SelectItem value="MA">Morocco</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Controls payroll withholding independently of your business country.
+                </p>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Salary Expense Account</Label>

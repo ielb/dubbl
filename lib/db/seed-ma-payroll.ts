@@ -4,10 +4,8 @@
  * to the correct 2026 statutory rates — see lib/db/schema/payroll.ts) and
  * seeds the 2026 IR bracket schedule into taxBracket.
  *
- * Not wired into any UI or automatic trigger — a Moroccan payroll settings
- * UI is explicitly out of scope for this phase (issue #4). Callable directly
- * (e.g. from a one-off script) once an org needs to be configured for
- * Moroccan payroll.
+ * Used by the payroll-settings REST and MCP operations when an organization
+ * switches its payroll country to Morocco.
  */
 import { db } from "@/lib/db";
 import { payrollSettings, taxBracket } from "@/lib/db/schema";
@@ -37,7 +35,7 @@ export const MA_IR_BRACKETS_2026: {
   { minIncome: 18_000_000, maxIncome: null, rate: 3700 }, // above 180k: 37%
 ];
 
-/** Idempotent: does nothing if this org's MA brackets are already seeded. */
+/** Idempotent: inserts only Moroccan bracket rows that are not already present. */
 export async function seedMoroccanPayrollConfig(
   organizationId: string,
   exec: DbOrTx = db
@@ -51,13 +49,26 @@ export async function seedMoroccanPayrollConfig(
     where: and(
       eq(taxBracket.organizationId, organizationId),
       eq(taxBracket.jurisdictionLevel, "federal"),
-      eq(taxBracket.taxYear, MA_IR_TAX_YEAR)
+      eq(taxBracket.taxYear, MA_IR_TAX_YEAR),
+      eq(taxBracket.name, "Morocco IR 2026")
     ),
   });
-  if (existing.length > 0) return;
+
+  const existingKeys = new Set(
+    existing.map(
+      (row) => `${row.minIncome}:${row.maxIncome ?? "open"}:${row.rate}`
+    )
+  );
+  const missingBrackets = MA_IR_BRACKETS_2026.filter(
+    (row) =>
+      !existingKeys.has(
+        `${row.minIncome}:${row.maxIncome ?? "open"}:${row.rate}`
+      )
+  );
+  if (missingBrackets.length === 0) return;
 
   await exec.insert(taxBracket).values(
-    MA_IR_BRACKETS_2026.map((b) => ({
+    missingBrackets.map((b) => ({
       organizationId,
       name: "Morocco IR 2026",
       jurisdictionLevel: "federal" as const,

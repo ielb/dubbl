@@ -41,6 +41,10 @@ import {
   MOROCCAN_TAX_FORM_TYPES,
 } from "@/lib/payroll/morocco-tax-forms";
 import {
+  getOrCreatePayrollSettings,
+  updatePayrollSettings,
+} from "@/lib/payroll/payroll-settings";
+import {
   getNextEntryNumber,
   findAccountByCode,
   ensureAccountByCode,
@@ -72,6 +76,74 @@ function calculateGrossPay(annualSalary: number, payFrequency: string): number {
 }
 
 export function registerPayrollTools(server: McpServer, ctx: AuthContext) {
+  server.tool(
+    "get_payroll_settings",
+    "Get this organization's payroll settings, creating the default settings row if needed. Returns the active payroll country, currency, withholding rates, account codes, and approval settings. Rate fields are basis points; wage-base fields are integer cents.",
+    {},
+    () =>
+      wrapTool(ctx, async () => {
+        requireRole(ctx, "manage:payroll");
+        const settings = await getOrCreatePayrollSettings(ctx.organizationId);
+        return { settings };
+      })
+  );
+
+  server.tool(
+    "update_payroll_settings",
+    "Update this organization's payroll settings. Setting country to 'MA' atomically activates Moroccan CNSS/AMO/IR payroll and idempotently seeds the six 2026 IR brackets; setting it to 'US' preserves Moroccan brackets but makes them inactive through the country branch. Rate values are basis points, not percentages, and monetary wage bases returned by the tool are integer cents. Returns the saved settings.",
+    {
+      defaultTaxRate: z
+        .number()
+        .int()
+        .min(0)
+        .max(10000)
+        .optional()
+        .describe("Fallback withholding rate in basis points, from 0 to 10000"),
+      overtimeThresholdHours: z
+        .number()
+        .min(0)
+        .optional()
+        .describe("Weekly hours after which overtime starts"),
+      overtimeMultiplier: z
+        .number()
+        .min(1)
+        .optional()
+        .describe("Overtime pay multiplier, such as 1.5"),
+      defaultCurrency: z
+        .string()
+        .min(1)
+        .max(3)
+        .optional()
+        .describe("Three-letter payroll currency code, such as MAD or USD"),
+      salaryExpenseAccountCode: z
+        .string()
+        .optional()
+        .describe("Chart-of-accounts code for salary expense"),
+      taxPayableAccountCode: z
+        .string()
+        .optional()
+        .describe("Chart-of-accounts code for payroll tax payable"),
+      bankAccountCode: z
+        .string()
+        .optional()
+        .describe("Chart-of-accounts code used as the payroll bank account"),
+      autoApprovalEnabled: z
+        .boolean()
+        .optional()
+        .describe("Whether payroll runs can be approved automatically"),
+      country: z
+        .enum(["US", "MA"])
+        .optional()
+        .describe("Payroll country. Use MA for Moroccan CNSS, AMO, and IR withholding; independent of the organization's business country."),
+    },
+    (params) =>
+      wrapTool(ctx, async () => {
+        requireRole(ctx, "manage:payroll");
+        const settings = await updatePayrollSettings(ctx.organizationId, params);
+        return { settings };
+      })
+  );
+
   // ─── Employees ────────────────────────────────────────────────────
   server.tool(
     "list_payroll_employees",

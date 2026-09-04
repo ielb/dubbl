@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { payrollSettings } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
 import { getAuthContext } from "@/lib/api/auth-context";
 import { requireRole } from "@/lib/api/require-role";
 import { handleError, ok } from "@/lib/api/response";
 import { logAudit } from "@/lib/api/audit";
+import {
+  getOrCreatePayrollSettings,
+  updatePayrollSettings,
+} from "@/lib/payroll/payroll-settings";
 import { z } from "zod";
 
 const updateSchema = z.object({
@@ -17,6 +17,7 @@ const updateSchema = z.object({
   taxPayableAccountCode: z.string().optional(),
   bankAccountCode: z.string().optional(),
   autoApprovalEnabled: z.boolean().optional(),
+  country: z.enum(["US", "MA"]).optional(),
 });
 
 export async function GET(request: Request) {
@@ -24,17 +25,7 @@ export async function GET(request: Request) {
     const ctx = await getAuthContext(request);
     requireRole(ctx, "manage:payroll");
 
-    let settings = await db.query.payrollSettings.findFirst({
-      where: eq(payrollSettings.organizationId, ctx.organizationId),
-    });
-
-    if (!settings) {
-      const [created] = await db
-        .insert(payrollSettings)
-        .values({ organizationId: ctx.organizationId })
-        .returning();
-      settings = created;
-    }
+    const settings = await getOrCreatePayrollSettings(ctx.organizationId);
 
     return ok({ settings });
   } catch (err) {
@@ -50,24 +41,7 @@ export async function PUT(request: Request) {
     const body = await request.json();
     const parsed = updateSchema.parse(body);
 
-    let settings = await db.query.payrollSettings.findFirst({
-      where: eq(payrollSettings.organizationId, ctx.organizationId),
-    });
-
-    if (!settings) {
-      const [created] = await db
-        .insert(payrollSettings)
-        .values({ organizationId: ctx.organizationId, ...parsed })
-        .returning();
-      settings = created;
-    } else {
-      const [updated] = await db
-        .update(payrollSettings)
-        .set({ ...parsed, updatedAt: new Date() })
-        .where(eq(payrollSettings.organizationId, ctx.organizationId))
-        .returning();
-      settings = updated;
-    }
+    const settings = await updatePayrollSettings(ctx.organizationId, parsed);
 
     logAudit({ ctx, action: "update", entityType: "payrollSettings", entityId: settings.id, changes: parsed, request });
 
