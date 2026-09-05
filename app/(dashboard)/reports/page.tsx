@@ -31,228 +31,235 @@ import {
 import { Section } from "@/components/dashboard/section";
 import { ContentReveal } from "@/components/ui/content-reveal";
 import { useDocumentTitle } from "@/lib/hooks/use-document-title";
+import { useTranslations } from "next-intl";
 
-const reportCategories = [
+function useReportCategories() {
+  const t = useTranslations("Reports");
+
+  return [
   {
-    title: "The big picture",
-    description: "Start-here summaries of how the business is doing.",
+    title: t("categories.bigPicture.title"),
+    description: t("categories.bigPicture.description"),
     reports: [
       {
-        title: "Quick health check",
-        description: "One page of key numbers this period next to last period, so you can see what changed at a glance.",
+        title: t("items.health.title"),
+        description: t("items.health.description"),
         href: "/reports/executive-summary",
         icon: Sparkles,
       },
       {
-        title: "Money in vs money out",
-        description: "What you earned minus what you spent over a period (also called profit & loss).",
+        title: t("items.profitLoss.title"),
+        description: t("items.profitLoss.description"),
         href: "/reports/profit-and-loss",
         icon: TrendingUp,
       },
       {
-        title: "What you own and owe",
-        description: "Everything the business owns and owes on a chosen date (also called a balance sheet).",
+        title: t("items.balanceSheet.title"),
+        description: t("items.balanceSheet.description"),
         href: "/reports/balance-sheet",
         icon: BarChart3,
       },
       {
-        title: "Where your cash went",
-        description: "How cash moved in and out over a period — from day-to-day trading, buying/selling things, and funding.",
+        title: t("items.cashFlow.title"),
+        description: t("items.cashFlow.description"),
         href: "/reports/cash-flow",
         icon: ArrowDownUp,
       },
       {
-        title: "Download a report bundle",
-        description: "Get the main reports for a period in one spreadsheet — handy for your accountant, bank, or tax time.",
+        title: t("items.pack.title"),
+        description: t("items.pack.description"),
         href: "/reports/pack",
         icon: Package2,
       },
     ],
   },
   {
-    title: "Profit & spending",
-    description: "Dig into earnings, costs, and how you compare over time.",
+    title: t("categories.profitSpending.title"),
+    description: t("categories.profitSpending.description"),
     reports: [
       {
-        title: "Profit by team or project",
-        description: "See money in vs money out split by department or project, side by side.",
+        title: t("items.tracking.title"),
+        description: t("items.tracking.description"),
         href: "/reports/tracking",
         icon: Layers,
       },
       {
-        title: "Compare two periods side by side",
-        description: "Put this period's earnings and costs next to another period to spot the change.",
+        title: t("items.pnlComparison.title"),
+        description: t("items.pnlComparison.description"),
         href: "/reports/pnl-comparison",
         icon: ArrowLeftRight,
       },
       {
-        title: "Budget vs what actually happened",
-        description: "See where you came in over or under your plan.",
+        title: t("items.budgetActual.title"),
+        description: t("items.budgetActual.description"),
         href: "/reports/budget-vs-actual",
         icon: Target,
       },
       {
-        title: "Where the money is spent",
-        description: "Your spending grouped by category, with trends and averages.",
+        title: t("items.expenseAnalytics.title"),
+        description: t("items.expenseAnalytics.description"),
         href: "/reports/expense-analytics",
         icon: TrendingDown,
       },
       {
-        title: "Profit by customer",
-        description: "What each customer brought in minus what serving them cost.",
+        title: t("items.profitability.title"),
+        description: t("items.profitability.description"),
         href: "/reports/profitability",
         icon: Users,
       },
       {
-        title: "Who you spend the most with",
-        description: "Your biggest suppliers ranked by total spend for the period.",
+        title: t("items.vendorSpend.title"),
+        description: t("items.vendorSpend.description"),
         href: "/reports/vendor-spend",
         icon: ShoppingBag,
       },
     ],
   },
   {
-    title: "Getting paid & paying",
-    description: "Track what's owed to you and what you owe.",
+    title: t("categories.gettingPaid.title"),
+    description: t("categories.gettingPaid.description"),
     reports: [
       {
-        title: "Who owes you (and how late)",
-        description: "Unpaid customer invoices grouped by how overdue they are.",
+        title: t("items.agedReceivables.title"),
+        description: t("items.agedReceivables.description"),
         href: "/reports/aged-receivables",
         icon: Clock,
       },
       {
-        title: "What you owe (and when it's due)",
-        description: "Unpaid supplier bills grouped by how soon they're due.",
+        title: t("items.agedPayables.title"),
+        description: t("items.agedPayables.description"),
         href: "/reports/aged-payables",
         icon: DollarSign,
       },
       {
-        title: "How fast you get paid",
-        description: "Average time customers take to pay you and you take to pay suppliers.",
+        title: t("items.paymentPerformance.title"),
+        description: t("items.paymentPerformance.description"),
         href: "/reports/payment-performance",
         icon: Timer,
       },
       {
-        title: "Possible double-ups",
-        description: "Find invoices or bills that may have been entered twice.",
+        title: t("items.duplicates.title"),
+        description: t("items.duplicates.description"),
         href: "/reports/duplicate-detection",
         icon: Copy,
       },
     ],
   },
   {
-    title: "Tax time",
-    description: "Reports for filing your sales tax and vendor forms.",
+    title: t("categories.taxTime.title"),
+    description: t("categories.taxTime.description"),
     reports: [
       {
-        title: "Sales tax / VAT / GST return",
-        description: "The figures for your tax return, box by box — open any box to see what's behind the number.",
+        title: t("items.vatReturn.title"),
+        description: t("items.vatReturn.description"),
         href: "/reports/vat-return",
         icon: FileCheck2,
       },
       {
-        title: "Tax collected vs tax paid",
-        description: "Tax you charged customers vs tax you paid suppliers, by tax rate.",
+        title: t("items.taxSummary.title"),
+        description: t("items.taxSummary.description"),
         href: "/reports/tax-summary",
         icon: Receipt,
       },
       {
-        title: "1099 vendor totals (US)",
-        description: "Total non-card payments to each 1099 contractor for the year, with who crosses the filing threshold.",
+        title: t("items.vendor1099.title"),
+        description: t("items.vendor1099.description"),
         href: "/reports/1099",
         icon: FileText,
       },
     ],
   },
   {
-    title: "Planning ahead",
-    description: "Look forward and keep an eye on key signals.",
+    title: t("categories.planning.title"),
+    description: t("categories.planning.description"),
     reports: [
       {
-        title: "Cash coming up",
-        description: "A forward look at expected money in and out from invoices, bills, and repeating items.",
+        title: t("items.forecast.title"),
+        description: t("items.forecast.description"),
         href: "/reports/cash-flow-forecast",
         icon: Compass,
       },
       {
-        title: "What's due soon",
-        description: "Upcoming invoice due dates, bill payments, and repeating events on a calendar.",
+        title: t("items.calendar.title"),
+        description: t("items.calendar.description"),
         href: "/reports/financial-calendar",
         icon: CalendarDays,
       },
       {
-        title: "Business health signals",
-        description: "Quick ratios like how easily you can cover bills and how strong your margins are.",
+        title: t("items.ratios.title"),
+        description: t("items.ratios.description"),
         href: "/reports/financial-ratios",
         icon: Gauge,
       },
     ],
   },
   {
-    title: "For your accountant",
-    description: "The detailed, line-by-line views accountants expect.",
+    title: t("categories.accountant.title"),
+    description: t("categories.accountant.description"),
     reports: [
       {
-        title: "Account balances check",
-        description: "Every account's balance on a chosen date, with optional earlier dates to compare (also called a trial balance).",
+        title: t("items.trialBalance.title"),
+        description: t("items.trialBalance.description"),
         href: "/reports/trial-balance",
         icon: Scale,
       },
       {
-        title: "Every transaction, by account",
-        description: "All bookkeeping entries grouped by account with a running balance (also called the general ledger).",
+        title: t("items.ledger.title"),
+        description: t("items.ledger.description"),
         href: "/reports/general-ledger",
         icon: BookOpen,
       },
       {
-        title: "What you own and owe — compared",
-        description: "Two dates of what you own and owe, side by side, to show what moved.",
+        title: t("items.comparativeBalance.title"),
+        description: t("items.comparativeBalance.description"),
         href: "/reports/comparative-balance-sheet",
         icon: GitCompareArrows,
       },
       {
-        title: "Combined view across companies",
-        description: "Roll up the numbers from several companies into one set of statements.",
+        title: t("items.consolidation.title"),
+        description: t("items.consolidation.description"),
         href: "/reports/consolidation",
         icon: Building2,
       },
     ],
   },
   {
-    title: "Save, schedule & reconcile",
-    description: "Keep reports handy, send them automatically, and check your bank is reconciled.",
+    title: t("categories.operations.title"),
+    description: t("categories.operations.description"),
     reports: [
       {
-        title: "Bank reconciliation status",
-        description: "Across all your accounts, what's matched to the bank and what's still outstanding.",
+        title: t("items.reconciliation.title"),
+        description: t("items.reconciliation.description"),
         href: "/reports/bank-reconciliation-status",
         icon: FileCheck2,
       },
       {
-        title: "Bank cash flow",
-        description: "Money in and out of your bank and cash accounts over a period.",
+        title: t("items.bankCashFlow.title"),
+        description: t("items.bankCashFlow.description"),
         href: "/reports/bank-cash-flow",
         icon: ArrowDownUp,
       },
       {
-        title: "Saved reports",
-        description: "Reports you've saved to run again later with the same settings.",
+        title: t("items.saved.title"),
+        description: t("items.saved.description"),
         href: "/reports/saved",
         icon: FileText,
       },
       {
-        title: "Scheduled report emails",
-        description: "Have reports emailed to you or your accountant automatically.",
+        title: t("items.schedules.title"),
+        description: t("items.schedules.description"),
         href: "/reports/schedules",
         icon: CalendarDays,
       },
     ],
   },
-];
+  ];
+}
 
 export default function ReportsPage() {
-  useDocumentTitle("Reports · Overview");
+  const t = useTranslations("Reports");
+  const reportCategories = useReportCategories();
+  useDocumentTitle(t("documentTitle"));
   return (
     <ContentReveal>
       <div className="space-y-6 sm:space-y-10">

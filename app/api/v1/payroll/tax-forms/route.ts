@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { taxFormGeneration, taxForm } from "@/lib/db/schema";
+import { taxFormGeneration } from "@/lib/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { getAuthContext } from "@/lib/api/auth-context";
 import { handleError } from "@/lib/api/response";
@@ -21,8 +21,22 @@ export async function GET(request: Request) {
     ];
 
     if (taxYear) conditions.push(eq(taxFormGeneration.taxYear, parseInt(taxYear)));
-    if (formType && ["1099_nec", "1099_misc", "w2"].includes(formType)) {
-      conditions.push(eq(taxFormGeneration.formType, formType as "1099_nec"));
+    if (
+      formType &&
+      [
+        "1099_nec",
+        "1099_misc",
+        "w2",
+        "ma_cnss_declaration",
+        "ma_ir_annual_summary",
+      ].includes(formType)
+    ) {
+      conditions.push(
+        eq(
+          taxFormGeneration.formType,
+          formType as typeof taxFormGeneration.$inferSelect.formType
+        )
+      );
     }
 
     const items = await db.query.taxFormGeneration.findMany({

@@ -10,25 +10,29 @@ import {
   DollarSign,
   Settings,
   Landmark,
+  FileSpreadsheet,
 } from "lucide-react";
 import { TabLayout } from "@/components/dashboard/tab-layout";
-
-const TABS = [
-  { href: "/payroll", label: "Overview", icon: LayoutDashboard, exact: true },
-  { href: "/payroll/employees", label: "Employees", icon: Users },
-  { href: "/payroll/runs", label: "Runs", icon: FileText },
-  { href: "/payroll/tax-liabilities", label: "Tax Liabilities", icon: Landmark, title: "Payroll taxes you owe, and recording payments to the agencies" },
-  { href: "/payroll/time-leave", label: "Time & Leave", icon: Clock },
-  { href: "/payroll/contractors", label: "Contractors", icon: Briefcase },
-  { href: "/payroll/compensation", label: "Compensation", icon: DollarSign },
-  { href: "/payroll/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/payroll/settings", label: "Settings", icon: Settings },
-];
+import { useTranslations } from "next-intl";
 
 export default function PayrollLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <TabLayout tabs={TABS}>{children}</TabLayout>;
+  const t = useTranslations("Payroll");
+  const tabs = [
+    { href: "/payroll", label: t("tabs.overview"), icon: LayoutDashboard, exact: true },
+    { href: "/payroll/employees", label: t("tabs.employees"), icon: Users },
+    { href: "/payroll/runs", label: t("tabs.runs"), icon: FileText },
+    { href: "/payroll/tax-liabilities", label: t("tabs.taxLiabilities"), icon: Landmark, title: t("tabs.taxLiabilitiesHelp") },
+    { href: "/payroll/time-leave", label: t("tabs.timeLeave"), icon: Clock },
+    { href: "/payroll/contractors", label: t("tabs.contractors"), icon: Briefcase },
+    { href: "/payroll/compensation", label: t("tabs.compensation"), icon: DollarSign },
+    { href: "/payroll/analytics", label: t("tabs.analytics"), icon: BarChart3 },
+    { href: "/payroll/tax-forms", label: t("tabs.filingDocuments"), icon: FileSpreadsheet },
+    { href: "/payroll/settings", label: t("tabs.settings"), icon: Settings },
+  ];
+
+  return <TabLayout tabs={tabs}>{children}</TabLayout>;
 }

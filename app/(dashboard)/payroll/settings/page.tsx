@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import Link from "next/link";
-import { Save, Plus, Trash2, Settings, Shield, Clock, CalendarDays, DollarSign, Layers, ExternalLink } from "lucide-react";
+import { Save, Plus, Trash2, Shield, Clock, CalendarDays, DollarSign, Layers, ExternalLink } from "lucide-react";
 import { Section } from "@/components/dashboard/section";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,7 @@ import { Switch } from "@/components/ui/switch";
 import { CurrencySelect } from "@/components/ui/currency-select";
 import { cn } from "@/lib/utils";
 import { useConfirm } from "@/lib/hooks/use-confirm";
+import { useTranslations } from "next-intl";
 
 interface PayrollSettingsData {
   defaultTaxRate: number;
@@ -41,6 +42,7 @@ interface PayrollSettingsData {
   taxPayableAccountCode: string;
   bankAccountCode: string;
   autoApprovalEnabled: boolean;
+  country: "US" | "MA";
 }
 
 interface DeductionType {
@@ -107,6 +109,7 @@ const anim = (delay: number) => ({
 });
 
 export default function PayrollSettingsPage() {
+  const t = useTranslations("Payroll");
   const { confirm, dialog: confirmDialog } = useConfirm();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -121,6 +124,7 @@ export default function PayrollSettingsPage() {
     taxPayableAccountCode: "2200",
     bankAccountCode: "1100",
     autoApprovalEnabled: false,
+    country: "US",
   });
 
   // Deduction types
@@ -189,8 +193,10 @@ export default function PayrollSettingsPage() {
         headers: { "Content-Type": "application/json", "x-organization-id": orgId },
         body: JSON.stringify(settings),
       });
-      if (res.ok) toast.success("Settings saved");
-      else toast.error("Failed to save settings");
+      if (res.ok) {
+        toast.success("Settings saved");
+        fetchAll();
+      } else toast.error("Failed to save settings");
     } catch {
       toast.error("Failed to save settings");
     } finally {
@@ -395,6 +401,26 @@ export default function PayrollSettingsPage() {
                   value={settings.defaultCurrency}
                   onValueChange={(v) => setSettings({ ...settings, defaultCurrency: v })}
                 />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t("settings.payrollCountry")}</Label>
+                <Select
+                  value={settings.country}
+                  onValueChange={(country: "US" | "MA") =>
+                    setSettings({ ...settings, country })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="US">{t("settings.unitedStates")}</SelectItem>
+                    <SelectItem value="MA">{t("settings.morocco")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {t("settings.countryHelp")}
+                </p>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Salary Expense Account</Label>

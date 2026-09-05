@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Plus, FolderKanban, Clock, DollarSign, Target, Users } from "lucide-react";
 import { Section } from "@/components/dashboard/section";
 import { DataTable, type Column } from "@/components/dashboard/data-table";
@@ -62,16 +63,27 @@ const priorityColors: Record<string, string> = {
   urgent: "border-red-200 bg-red-50 text-red-700",
 };
 
-function formatHours(minutes: number): string {
+function formatHours(minutes: number, hourSuffix: string, minuteSuffix: string): string {
   const hrs = Math.floor(minutes / 60);
   const mins = minutes % 60;
-  return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`;
+  return mins > 0
+    ? `${hrs}${hourSuffix} ${mins}${minuteSuffix}`
+    : `${hrs}${hourSuffix}`;
 }
 
-const columns: Column<Project>[] = [
+interface ProjectColumnCopy {
+  headers: Record<string, string>;
+  statuses: Record<string, string>;
+  priorities: Record<string, string>;
+  hourSuffix: string;
+  minuteSuffix: string;
+}
+
+function buildColumns(copy: ProjectColumnCopy): Column<Project>[] {
+  return [
   {
     key: "name",
-    header: "Project",
+    header: copy.headers.project,
     render: (r) => (
       <div className="flex items-center gap-2.5">
         <div className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: r.color }} />
@@ -84,33 +96,35 @@ const columns: Column<Project>[] = [
   },
   {
     key: "status",
-    header: "Status",
+    header: copy.headers.status,
     className: "w-28",
     render: (r) => (
       <Badge variant="outline" className={cn("text-[10px]", statusColors[r.status])}>
-        {r.status.replace("_", " ")}
+        {copy.statuses[r.status] || r.status.replace("_", " ")}
       </Badge>
     ),
   },
   {
     key: "priority",
-    header: "Priority",
+    header: copy.headers.priority,
     className: "w-24",
     render: (r) => (
       <Badge variant="outline" className={cn("text-[10px]", priorityColors[r.priority])}>
-        {r.priority}
+        {copy.priorities[r.priority] || r.priority}
       </Badge>
     ),
   },
   {
     key: "progress",
-    header: "Time",
+    header: copy.headers.time,
     className: "w-32",
     render: (r) => {
       const pct = r.estimatedHours > 0 ? Math.round((r.totalHours / r.estimatedHours) * 100) : 0;
       return (
         <div className="space-y-1">
-          <span className="text-xs font-mono tabular-nums">{formatHours(r.totalHours)}</span>
+          <span className="text-xs font-mono tabular-nums">
+            {formatHours(r.totalHours, copy.hourSuffix, copy.minuteSuffix)}
+          </span>
           {r.estimatedHours > 0 && (
             <div className="flex items-center gap-1.5">
               <div className="h-1 w-16 rounded-full bg-muted">
@@ -125,7 +139,7 @@ const columns: Column<Project>[] = [
   },
   {
     key: "budget",
-    header: "Budget",
+    header: copy.headers.budget,
     className: "w-28 text-right",
     render: (r) => (
       <span className="font-mono text-xs tabular-nums">
@@ -135,7 +149,7 @@ const columns: Column<Project>[] = [
   },
   {
     key: "billed",
-    header: "Billed",
+    header: copy.headers.billed,
     className: "w-28 text-right",
     render: (r) => (
       <span className="font-mono text-xs tabular-nums">{formatMoney(r.totalBilled)}</span>
@@ -143,7 +157,7 @@ const columns: Column<Project>[] = [
   },
   {
     key: "team",
-    header: "Team",
+    header: copy.headers.team,
     className: "w-24",
     render: (r) => {
       if (r.members.length === 0) return <span className="text-xs text-muted-foreground">-</span>;
@@ -163,15 +177,44 @@ const columns: Column<Project>[] = [
       );
     },
   },
-];
+  ];
+}
 
 export default function ProjectsPage() {
+  const t = useTranslations("Projects");
   const router = useRouter();
   const { open: openDrawer } = useCreateDrawer();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
-  useDocumentTitle("Projects · All Projects");
+  useDocumentTitle(t("documentTitle"));
+
+  const columns = useMemo(() => buildColumns({
+    headers: {
+      project: t("columns.project"),
+      status: t("columns.status"),
+      priority: t("columns.priority"),
+      time: t("columns.time"),
+      budget: t("columns.budget"),
+      billed: t("columns.billed"),
+      team: t("columns.team"),
+    },
+    statuses: {
+      active: t("status.active"),
+      completed: t("status.completed"),
+      on_hold: t("status.on_hold"),
+      cancelled: t("status.cancelled"),
+      archived: t("status.archived"),
+    },
+    priorities: {
+      low: t("priority.low"),
+      medium: t("priority.medium"),
+      high: t("priority.high"),
+      urgent: t("priority.urgent"),
+    },
+    hourSuffix: t("hourSuffix"),
+    minuteSuffix: t("minuteSuffix"),
+  }), [t]);
 
   useEffect(() => {
     const orgId = localStorage.getItem("activeOrgId");
@@ -202,18 +245,18 @@ export default function ProjectsPage() {
   if (!loading && projects.length === 0 && statusFilter === "all") {
     return (
       <ContentReveal className="space-y-10">
-        <Section title="Projects" description="Create your first project to start tracking time, tasks, and billing.">
+        <Section title={t("projects")} description={t("emptyDescription")}>
           <EmptyState
             icon={FolderKanban}
-            title="No projects yet"
-            description="Create your first project to start tracking time, tasks, and billing."
+            title={t("emptyTitle")}
+            description={t("emptyDescription")}
           >
             <Button
               onClick={() => openDrawer("project")}
               className="bg-emerald-600 hover:bg-emerald-700"
             >
               <Plus className="mr-2 size-4" />
-              New Project
+              {t("newProject")}
             </Button>
           </EmptyState>
         </Section>
@@ -224,16 +267,16 @@ export default function ProjectsPage() {
   return (
     <ContentReveal>
     <div className="space-y-6 sm:space-y-8">
-      <Section title="Overview" description="A summary of your projects and resource allocation.">
+      <Section title={t("overview")} description={t("overviewDescription")}>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <StatCard title="Active" value={activeProjects.length.toString()} icon={FolderKanban} />
-            <StatCard title="Total Budget" value={formatMoney(totalBudget)} icon={DollarSign} />
-            <StatCard title="Total Billed" value={formatMoney(totalBilled)} icon={Target}
-              change={totalBudget > 0 ? `${Math.round((totalBilled / totalBudget) * 100)}% of budget` : undefined}
+            <StatCard title={t("active")} value={activeProjects.length.toString()} icon={FolderKanban} />
+            <StatCard title={t("totalBudget")} value={formatMoney(totalBudget)} icon={DollarSign} />
+            <StatCard title={t("totalBilled")} value={formatMoney(totalBilled)} icon={Target}
+              change={totalBudget > 0 ? t("ofBudget", { percent: Math.round((totalBilled / totalBudget) * 100) }) : undefined}
             />
-            <StatCard title="Hours Logged" value={formatHours(totalHours)} icon={Clock} />
-            <StatCard title="Team Members" value={totalMembers.toString()} icon={Users} />
+            <StatCard title={t("hoursLogged")} value={formatHours(totalHours, t("hourSuffix"), t("minuteSuffix"))} icon={Clock} />
+            <StatCard title={t("teamMembers")} value={totalMembers.toString()} icon={Users} />
           </div>
           <div className="flex justify-end">
             <Button
@@ -242,7 +285,7 @@ export default function ProjectsPage() {
               className="bg-emerald-600 hover:bg-emerald-700"
             >
               <Plus className="mr-2 size-4" />
-              New Project
+              {t("newProject")}
             </Button>
           </div>
         </div>
@@ -250,16 +293,16 @@ export default function ProjectsPage() {
 
       <div className="h-px bg-border" />
 
-      <Section title="Projects" description="View and manage all your projects.">
+      <Section title={t("projects")} description={t("sectionDescription")}>
         <div className="space-y-4">
           <div className="overflow-x-auto -mx-1 px-1">
             <Tabs value={statusFilter} onValueChange={setStatusFilter}>
               <TabsList>
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="active">Active</TabsTrigger>
-                <TabsTrigger value="completed">Completed</TabsTrigger>
-                <TabsTrigger value="on_hold">On Hold</TabsTrigger>
-                <TabsTrigger value="archived">Archived</TabsTrigger>
+                <TabsTrigger value="all">{t("status.all")}</TabsTrigger>
+                <TabsTrigger value="active">{t("status.active")}</TabsTrigger>
+                <TabsTrigger value="completed">{t("status.completed")}</TabsTrigger>
+                <TabsTrigger value="on_hold">{t("status.on_hold")}</TabsTrigger>
+                <TabsTrigger value="archived">{t("status.archived")}</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -268,7 +311,7 @@ export default function ProjectsPage() {
               columns={columns}
               data={projects}
               loading={loading}
-              emptyMessage="No projects found."
+              emptyMessage={t("noProjects")}
               onRowClick={(r) => router.push(`/projects/${r.id}`)}
             />
         </div>

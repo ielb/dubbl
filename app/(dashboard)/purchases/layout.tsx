@@ -2,22 +2,23 @@
 
 import { Receipt, CreditCard, ClipboardList, ClipboardCheck, PackageOpen, Undo2, PackageCheck, Repeat } from "lucide-react";
 import { TabLayout } from "@/components/dashboard/tab-layout";
-
-const TABS = [
-  { href: "/purchases", label: "Bills", icon: Receipt, exact: true },
-  { href: "/purchases/bills/recurring", label: "Recurring Bills", icon: Repeat, title: "Supplier bills that repeat on a schedule" },
-  { href: "/purchases/debit-notes", label: "Supplier Credits", icon: Undo2, title: "Credit a supplier owes you back, applied against bills" },
-  { href: "/purchases/expenses", label: "Expenses", icon: CreditCard },
-  { href: "/purchases/orders", label: "Purchase Orders", icon: ClipboardList },
-  { href: "/purchases/goods-receipts", label: "Goods Received", icon: PackageCheck, title: "Items received from suppliers against a purchase order" },
-  { href: "/purchases/requisitions", label: "Requisitions", icon: ClipboardCheck },
-  { href: "/purchases/landed-costs", label: "Landed Costs", icon: PackageOpen, title: "Extra costs like freight & duty added to the cost of stock" },
-];
+import { useTranslations } from "next-intl";
 
 export default function PurchasesLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <TabLayout tabs={TABS}>{children}</TabLayout>;
+  const t = useTranslations("Purchases");
+  const tabs = [
+    { href: "/purchases", label: t("tabs.bills"), icon: Receipt, exact: true },
+    { href: "/purchases/bills/recurring", label: t("tabs.recurringBills"), icon: Repeat, title: t("tabs.recurringBillsHelp") },
+    { href: "/purchases/debit-notes", label: t("tabs.supplierCredits"), icon: Undo2, title: t("tabs.supplierCreditsHelp") },
+    { href: "/purchases/expenses", label: t("tabs.expenses"), icon: CreditCard },
+    { href: "/purchases/orders", label: t("tabs.purchaseOrders"), icon: ClipboardList },
+    { href: "/purchases/goods-receipts", label: t("tabs.goodsReceived"), icon: PackageCheck, title: t("tabs.goodsReceivedHelp") },
+    { href: "/purchases/requisitions", label: t("tabs.requisitions"), icon: ClipboardCheck },
+    { href: "/purchases/landed-costs", label: t("tabs.landedCosts"), icon: PackageOpen, title: t("tabs.landedCostsHelp") },
+  ];
+  return <TabLayout tabs={tabs}>{children}</TabLayout>;
 }

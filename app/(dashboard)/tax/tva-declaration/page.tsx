@@ -13,6 +13,7 @@ import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { useDocumentTitle } from "@/lib/hooks/use-document-title";
 import { useOrganization } from "@/components/dashboard/org-loader";
+import { useLocale, useTranslations } from "next-intl";
 
 interface TvaBox {
   box: string;
@@ -23,13 +24,15 @@ interface TvaBox {
 const KEY_BOX = "4";
 
 export default function TvaDeclarationPage() {
+  const t = useTranslations("Tax");
+  const locale = useLocale();
   const now = new Date();
   const [startDate, setStartDate] = useState(`${now.getFullYear()}-01-01`);
   const [endDate, setEndDate] = useState(now.toISOString().slice(0, 10));
   const [boxes, setBoxes] = useState<TvaBox[]>([]);
   const [loading, setLoading] = useState(true);
   const currency = useOrganization()?.defaultCurrency ?? "USD";
-  useDocumentTitle("Tax · TVA Declaration");
+  useDocumentTitle(t("tva.documentTitle"));
 
   useEffect(() => {
     const orgId = localStorage.getItem("activeOrgId");
@@ -59,15 +62,19 @@ export default function TvaDeclarationPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="TVA Declaration"
-        description="Moroccan TVA declaration for the selected period. Box numbering is approximate — confirm against the official DGI form before filing."
+        title={t("tva.title")}
+        description={t("tva.description")}
       >
         <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => window.print()}>
           <Printer className="size-3.5" />
-          Print
+          {t("tva.print")}
         </Button>
         <ExportButton
-          data={boxes.map((b) => ({ box: b.box, description: b.label, amount: b.amount }))}
+          data={boxes.map((b) => ({
+            box: b.box,
+            description: t(`tva.boxes.${b.box}`),
+            amount: b.amount,
+          }))}
           columns={["box", "description", "amount"]}
           filename="tva-declaration"
         />
@@ -92,13 +99,13 @@ export default function TvaDeclarationPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-                  Box 4 · {netTva >= 0 ? "TVA Due to the DGI" : "TVA Credit Carried Forward"}
+                  Box 4 · {netTva >= 0 ? t("tva.due") : t("tva.credit")}
                 </p>
                 <p className={cn(
                   "mt-1 text-2xl font-bold font-mono tabular-nums",
                   netTva >= 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"
                 )}>
-                  {formatMoney(Math.abs(netTva), currency)}
+                  {formatMoney(Math.abs(netTva), currency, locale)}
                 </p>
               </div>
               <div className={cn(
@@ -118,7 +125,7 @@ export default function TvaDeclarationPage() {
 
           <div>
             <h3 className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground mb-2">
-              All Boxes
+              {t("tva.allBoxes")}
             </h3>
             <div className="rounded-lg border overflow-hidden">
               {boxes.map((b, i) => {
@@ -143,9 +150,11 @@ export default function TvaDeclarationPage() {
                         {b.box}
                       </div>
                       <div>
-                        <p className={cn("text-sm", isKey && "font-semibold")}>{b.label}</p>
+                        <p className={cn("text-sm", isKey && "font-semibold")}>
+                          {t(`tva.boxes.${b.box}`)}
+                        </p>
                         {isCalc && (
-                          <Badge variant="outline" className="text-[9px] mt-0.5">Calculated</Badge>
+                          <Badge variant="outline" className="text-[9px] mt-0.5">{t("tva.calculated")}</Badge>
                         )}
                       </div>
                     </div>
@@ -155,7 +164,7 @@ export default function TvaDeclarationPage() {
                       isKey && netTva >= 0 && "text-red-600 dark:text-red-400",
                       isKey && netTva < 0 && "text-emerald-600 dark:text-emerald-400"
                     )}>
-                      {formatMoney(Math.abs(b.amount), currency)}
+                      {formatMoney(Math.abs(b.amount), currency, locale)}
                     </p>
                   </div>
                 );
@@ -166,15 +175,15 @@ export default function TvaDeclarationPage() {
           {/* Output vs Input, for orientation */}
           <div className="rounded-lg border bg-card p-5">
             <h3 className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-              TVA Facturee vs TVA Deductible
+              {t("tva.comparison")}
             </h3>
             <div className="mt-4 flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">TVA facturee (output)</span>
-              <span className="font-mono tabular-nums font-medium">{formatMoney(outputTva, currency)}</span>
+              <span className="text-muted-foreground">{t("tva.output")}</span>
+              <span className="font-mono tabular-nums font-medium">{formatMoney(outputTva, currency, locale)}</span>
             </div>
             <div className="mt-2 flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">TVA deductible (input)</span>
-              <span className="font-mono tabular-nums font-medium">{formatMoney(inputTva, currency)}</span>
+              <span className="text-muted-foreground">{t("tva.input")}</span>
+              <span className="font-mono tabular-nums font-medium">{formatMoney(inputTva, currency, locale)}</span>
             </div>
           </div>
         </ContentReveal>

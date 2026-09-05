@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { motion, MotionConfig } from "motion/react";
 import {
   FileText,
@@ -64,35 +65,12 @@ type StatusFilter = "all" | "draft" | "completed" | "void" | "pending_approval";
 type RunTypeFilter = "all" | "regular" | "termination" | "bonus_only" | "correction" | "off_cycle";
 type SortKey = "date" | "gross" | "net";
 
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: "date", label: "Date" },
-  { value: "gross", label: "Before deductions" },
-  { value: "net", label: "Take-home" },
-];
-
 const statusColors: Record<string, string> = {
   draft: "",
   processing: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300",
   completed: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
   void: "border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300",
   pending_approval: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300",
-};
-
-// Plain-language payroll status labels for non-accountants.
-const statusLabels: Record<string, string> = {
-  draft: "Not finished",
-  processing: "Finishing",
-  completed: "Finished & recorded",
-  void: "Cancelled",
-  pending_approval: "Waiting for sign-off",
-};
-
-const runTypeLabels: Record<string, string> = {
-  regular: "Regular",
-  termination: "Termination",
-  bonus_only: "Bonus",
-  correction: "Correction",
-  off_cycle: "Off-cycle",
 };
 
 const runTypeColors: Record<string, string> = {
@@ -103,6 +81,7 @@ const runTypeColors: Record<string, string> = {
 };
 
 export default function PayrollRunsPage() {
+  const t = useTranslations("Payroll.runs");
   const router = useRouter();
   const [runs, setRuns] = useState<PayrollRun[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,7 +96,27 @@ export default function PayrollRunsPage() {
   const [runTypeFilter, setRunTypeFilter] = useState<RunTypeFilter>("all");
   const [sortBy, setSortBy] = useState<SortKey>("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  useDocumentTitle("Payroll · Runs");
+  useDocumentTitle(t("documentTitle"));
+
+  const sortOptions: { value: SortKey; label: string }[] = [
+    { value: "date", label: t("sort.date") },
+    { value: "gross", label: t("sort.gross") },
+    { value: "net", label: t("sort.net") },
+  ];
+  const statusLabels: Record<string, string> = {
+    draft: t("status.draft"),
+    processing: t("status.processing"),
+    completed: t("status.completed"),
+    void: t("status.void"),
+    pending_approval: t("status.pending_approval"),
+  };
+  const runTypeLabels: Record<string, string> = {
+    regular: t("type.regular"),
+    termination: t("type.termination"),
+    bonus_only: t("type.bonus_only"),
+    correction: t("type.correction"),
+    off_cycle: t("type.off_cycle"),
+  };
 
   // New run dialog
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -215,16 +214,16 @@ export default function PayrollRunsPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to create payroll run");
+        throw new Error(data.error || t("createFailed"));
       }
 
       const data = await res.json();
-      toast.success("Payroll run created");
+      toast.success(t("created"));
       setDialogOpen(false);
       router.push(`/payroll/runs/${data.run.id}`);
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : "Failed to create payroll run"
+        err instanceof Error ? err.message : t("createFailed")
       );
     } finally {
       setCreating(false);
@@ -259,15 +258,15 @@ export default function PayrollRunsPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || `Failed to create ${type} run`);
+        throw new Error(data.error || t("offCycleFailed", { type: runTypeLabels[type === "bonus-only" ? "bonus_only" : type] }));
       }
 
       const data = await res.json();
-      toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} run created`);
+      toast.success(t("offCycleCreated", { type: runTypeLabels[type === "bonus-only" ? "bonus_only" : type] }));
       router.push(`/payroll/runs/${data.run.id}`);
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : `Failed to create ${type} run`
+        err instanceof Error ? err.message : t("offCycleFailed", { type: runTypeLabels[type === "bonus-only" ? "bonus_only" : type] })
       );
     }
   }
@@ -285,10 +284,10 @@ export default function PayrollRunsPage() {
               <div className="absolute top-1/2 left-4 right-4 h-px bg-muted-foreground/15 -translate-y-1/2" />
               <div className="flex items-center justify-between relative">
                 {[
-                  { icon: FileText, label: "Set up", delay: 0.15, active: true },
-                  { icon: Search, label: "Review", delay: 0.25, active: false },
-                  { icon: ArrowUpDown, label: "Finish & record", delay: 0.35, active: false },
-                ].map((step, i) => (
+                  { icon: FileText, label: t("setup"), delay: 0.15, active: true },
+                  { icon: Search, label: t("review"), delay: 0.25, active: false },
+                  { icon: ArrowUpDown, label: t("finish"), delay: 0.35, active: false },
+                ].map((step) => (
                   <motion.div
                     key={step.label}
                     initial={{ opacity: 0, scale: 0.5 }}
@@ -326,7 +325,7 @@ export default function PayrollRunsPage() {
               transition={{ duration: 0.4, delay: 0.4 }}
               className="text-lg font-semibold"
             >
-              Run your first payroll
+              {t("emptyTitle")}
             </motion.h3>
             <motion.p
               initial={{ opacity: 0, y: 8 }}
@@ -334,7 +333,7 @@ export default function PayrollRunsPage() {
               transition={{ duration: 0.4, delay: 0.45 }}
               className="mt-2 max-w-sm text-sm text-muted-foreground text-center leading-relaxed"
             >
-              Set up a pay run for a date range, check each employee&apos;s pay, then finish it to lock in the amounts and record the wages.
+              {t("emptyDescription")}
             </motion.p>
 
             <motion.div
@@ -349,7 +348,7 @@ export default function PayrollRunsPage() {
                 className="bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/20"
               >
                 <Plus className="mr-2 size-4" />
-                New Payroll Run
+                {t("new")}
               </Button>
             </motion.div>
           </div>
@@ -406,11 +405,11 @@ export default function PayrollRunsPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
             <TabsList className="flex-wrap">
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="draft">Not finished</TabsTrigger>
-              <TabsTrigger value="completed">Finished</TabsTrigger>
-              <TabsTrigger value="pending_approval">Waiting for sign-off</TabsTrigger>
-              <TabsTrigger value="void">Cancelled</TabsTrigger>
+              <TabsTrigger value="all">{t("status.all")}</TabsTrigger>
+              <TabsTrigger value="draft">{t("status.draft")}</TabsTrigger>
+              <TabsTrigger value="completed">{t("status.finished")}</TabsTrigger>
+              <TabsTrigger value="pending_approval">{t("status.pending_approval")}</TabsTrigger>
+              <TabsTrigger value="void">{t("status.void")}</TabsTrigger>
             </TabsList>
           </Tabs>
 
@@ -421,25 +420,25 @@ export default function PayrollRunsPage() {
               onClick={() => setDialogOpen(true)}
             >
               <Plus className="size-3" />
-              New Payroll Run
+              {t("new")}
             </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" title="A one-off payment outside your normal payday">
-                  One-off payment
+                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" title={t("oneOffHelp")}>
+                  {t("oneOff")}
                   <ChevronDown className="size-3" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleCreateOffCycleRun("termination")} title="A final pay for someone leaving">
-                  Final pay (someone leaving)
+                <DropdownMenuItem onClick={() => handleCreateOffCycleRun("termination")} title={t("finalPayHelp")}>
+                  {t("finalPay")}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleCreateOffCycleRun("bonus-only")} title="A one-off bonus payment">
-                  Bonus only
+                <DropdownMenuItem onClick={() => handleCreateOffCycleRun("bonus-only")} title={t("bonusOnlyHelp")}>
+                  {t("bonusOnly")}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleCreateOffCycleRun("correction")} title="Fix a mistake in a past payroll">
-                  Fix a past payroll
+                <DropdownMenuItem onClick={() => handleCreateOffCycleRun("correction")} title={t("fixPastHelp")}>
+                  {t("fixPast")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -448,12 +447,12 @@ export default function PayrollRunsPage() {
 
         <Tabs value={runTypeFilter} onValueChange={(v) => setRunTypeFilter(v as RunTypeFilter)}>
           <TabsList className="flex-wrap">
-            <TabsTrigger value="all">All Types</TabsTrigger>
-            <TabsTrigger value="regular">Regular</TabsTrigger>
-            <TabsTrigger value="termination">Termination</TabsTrigger>
-            <TabsTrigger value="bonus_only">Bonus</TabsTrigger>
-            <TabsTrigger value="correction">Correction</TabsTrigger>
-            <TabsTrigger value="off_cycle">Off-cycle</TabsTrigger>
+            <TabsTrigger value="all">{t("type.all")}</TabsTrigger>
+            <TabsTrigger value="regular">{t("type.regular")}</TabsTrigger>
+            <TabsTrigger value="termination">{t("type.termination")}</TabsTrigger>
+            <TabsTrigger value="bonus_only">{t("type.bonus_only")}</TabsTrigger>
+            <TabsTrigger value="correction">{t("type.correction")}</TabsTrigger>
+            <TabsTrigger value="off_cycle">{t("type.off_cycle")}</TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -462,7 +461,7 @@ export default function PayrollRunsPage() {
           <div className="relative flex-1 sm:max-w-xs">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search by date or status..."
+              placeholder={t("search")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 pr-8 h-8 text-sm"
@@ -483,7 +482,7 @@ export default function PayrollRunsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {SORT_OPTIONS.map((opt) => (
+              {sortOptions.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
               ))}
             </SelectContent>
@@ -498,7 +497,7 @@ export default function PayrollRunsPage() {
       {/* Runs list */}
       {refetching || pendingSearch ? (
         <div className="flex items-center justify-center py-20">
-          <div className="brand-loader" aria-label="Loading">
+          <div className="brand-loader" aria-label={t("loading")}>
             <div className="brand-loader-circle brand-loader-circle-1" />
             <div className="brand-loader-circle brand-loader-circle-2" />
           </div>
@@ -509,9 +508,9 @@ export default function PayrollRunsPage() {
             <div className="mx-auto flex size-10 items-center justify-center rounded-xl bg-muted mb-3">
               <FileText className="size-5 text-muted-foreground" />
             </div>
-            <p className="text-sm font-medium">No runs found</p>
+            <p className="text-sm font-medium">{t("notFound")}</p>
             <p className="text-xs text-muted-foreground mt-1">
-              {search ? "Try a different search term" : "No runs match this filter"}
+              {search ? t("trySearch") : t("noFilterMatches")}
             </p>
           </div>
         </ContentReveal>
@@ -537,7 +536,7 @@ export default function PayrollRunsPage() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">
-                        {run.payPeriodStart} to {run.payPeriodEnd}
+                        {t("period", { start: run.payPeriodStart, end: run.payPeriodEnd })}
                       </p>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <Badge variant="outline" className={cn("text-[11px]", statusColors[run.status] || "")}>
@@ -554,15 +553,15 @@ export default function PayrollRunsPage() {
 
                   <div className="flex items-center gap-4 shrink-0">
                     <div className="hidden sm:block text-right">
-                      <p className="text-xs text-muted-foreground">Before deductions</p>
+                      <p className="text-xs text-muted-foreground">{t("sort.gross")}</p>
                       <p className="text-sm font-mono tabular-nums">{formatMoney(run.totalGross)}</p>
                     </div>
                     <div className="hidden sm:block text-right">
-                      <p className="text-xs text-muted-foreground">Taxes &amp; deductions</p>
+                      <p className="text-xs text-muted-foreground">{t("deductions")}</p>
                       <p className="text-sm font-mono tabular-nums text-red-600 dark:text-red-400">{formatMoney(run.totalDeductions)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-muted-foreground">Take-home</p>
+                      <p className="text-xs text-muted-foreground">{t("sort.net")}</p>
                       <p className="text-sm font-mono tabular-nums font-medium">{formatMoney(run.totalNet)}</p>
                     </div>
                   </div>
@@ -606,15 +605,16 @@ function NewRunDialog({
   onSubmit: () => void;
   loading: boolean;
 }) {
+  const t = useTranslations("Payroll.runs");
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New Payroll Run</DialogTitle>
+          <DialogTitle>{t("new")}</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>Pay Period Start</Label>
+            <Label>{t("start")}</Label>
             <Input
               type="date"
               value={payPeriodStart}
@@ -622,7 +622,7 @@ function NewRunDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label>Pay Period End</Label>
+            <Label>{t("end")}</Label>
             <Input
               type="date"
               value={payPeriodEnd}
@@ -632,14 +632,14 @@ function NewRunDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("cancel")}
           </Button>
           <Button
             onClick={onSubmit}
             disabled={!payPeriodStart || !payPeriodEnd || loading}
             className="bg-emerald-600 hover:bg-emerald-700"
           >
-            {loading ? "Creating..." : "Create Run"}
+            {loading ? t("creating") : t("create")}
           </Button>
         </DialogFooter>
       </DialogContent>

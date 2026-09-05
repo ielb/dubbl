@@ -10,13 +10,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await getAuthContext(request);
+    const ctx = await getAuthContext(request);
     const { id } = await params;
     const form = await db.query.taxForm.findFirst({
       where: eq(taxForm.id, id),
       with: { generation: true },
     });
-    if (!form) return notFound("Tax form");
+    if (!form || form.generation.organizationId !== ctx.organizationId) {
+      return notFound("Tax form");
+    }
     return NextResponse.json(form);
   } catch (err) {
     return handleError(err);
